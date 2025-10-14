@@ -188,17 +188,17 @@ button.active {
 
   select, input, .score-input, .set-score-input { font-size: 14px; }
 
-  /* Avoid content being hidden under bottom bar */
   body { padding-bottom: 96px; }
 
   /* Responsive court grid tweaks */
   .court-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 
-  /* Board container height adjustments on mobile */
-  .board-container { max-height: 70vh; }
-  .board-container { height: 70vh; }
+  /* Narrow CSV select further on mobile */
+  #board-export-type { max-width: 110px; }
 }
 
+/* Left-align court count controls */
+.court-count-controls {
 .history-court-grid {
   background-color: #f8f8ff; /* 薄い青色の背景 */
 }
@@ -807,8 +807,9 @@ th:hover {
 /* Court Settings Header Styles */
 .court-settings-header {
   display: flex;
-  justify-content: space-between; /* Distribute space between items */
+  justify-content: flex-start; /* Left align all groups */
   align-items: center; /* Align items vertically center */
+  gap: 10px;
   padding: 10px;
   background-color: #f0f0f0; /* Light grey background for the header */
   border-bottom: 1px solid #ccc;
@@ -867,6 +868,9 @@ th:hover {
   gap: 8px; /* Space between items within these control groups */
 }
 
+/* Keep the court count controls pinned to the left in header */
+.court-count-controls { margin-right: auto; }
+
 .court-format-controls label,
 .court-count-controls span {
   margin-right: 5px; /* Space after label/span */
@@ -886,8 +890,8 @@ th:hover {
 /* Prominent Add Match Button in Court Settings Header */
 .add-match-btn-prominent {
   margin-right: 16px;
-  padding: 10px 20px;
-  font-size: 1.1em;
+  padding: 10px 14px;
+  font-size: 0; /* hide label text everywhere */
   font-weight: bold;
   background-color: #28a745; /* Green color for 'add' action */
   color: white;
@@ -897,6 +901,12 @@ th:hover {
   transition: background-color 0.3s ease;
   margin-right: auto; /* Pushes other elements in the flex container to the right */
   line-height: 1.5; /* Improves vertical text alignment with padding */
+}
+.add-match-btn-prominent::after {
+  content: '+';
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .add-match-btn-prominent:hover {
@@ -1401,6 +1411,9 @@ th:hover {
   gap: 4px;
 }
 
+/* Place delete-all next to export button */
+.export-controls .delete-all-btn { margin-left: 8px; }
+
 .export-btn {
   background-color: #17a2b8;
   color: white;
@@ -1422,6 +1435,8 @@ th:hover {
   border-radius: 4px;
   font-size: 14px;
   background: white;
+  width: auto;
+  max-width: 140px;
 }
 
 /* Fix: prevent clipping of score digits in visible UI */
