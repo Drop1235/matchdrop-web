@@ -36,6 +36,7 @@ h1 {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .logo-icon {
@@ -53,6 +54,19 @@ nav {
   display: flex;
   gap: 10px;
   flex-wrap: wrap; /* allow wrapping on small screens */
+  align-items: center;
+}
+
+/* Prevent awkward internal wraps inside buttons/selects */
+nav > * { flex: 0 0 auto; white-space: nowrap; }
+
+/* Align the trash/delete tournament button with other controls */
+#delete-tournament-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
 }
 
 button {
@@ -120,7 +134,11 @@ button.active {
 @media (max-width: 768px) {
   .app-name { font-size: 18px; }
 
-  nav { gap: 8px; }
+  /* Brand first, nav below */
+  header { flex-direction: column; align-items: stretch; gap: 6px; }
+  .app-brand { width: 100%; justify-content: flex-start; padding: 6px 0 0; }
+
+  nav { gap: 8px; padding-bottom: 6px; }
 
   button { padding: 6px 10px; font-size: 13px; }
 
@@ -153,10 +171,16 @@ button.active {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 14px;
+    font-size: 0; /* hide original text */
     box-shadow: 0 6px 16px rgba(0,0,0,0.2);
     margin: 0;
     z-index: 2100;
+  }
+  .add-match-btn-prominent::after {
+    content: '+';
+    font-size: 28px;
+    line-height: 1;
+    font-weight: 700;
   }
 
   .court-count-controls { gap: 6px; }
@@ -169,14 +193,10 @@ button.active {
 
   /* Responsive court grid tweaks */
   .court-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
-}
-  .board-container {
-    max-height: 70vh;
-  }
 
-  .board-container {
-    height: 70vh;
-  }
+  /* Board container height adjustments on mobile */
+  .board-container { max-height: 70vh; }
+  .board-container { height: 70vh; }
 }
 
 .history-court-grid {
