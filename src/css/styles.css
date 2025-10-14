@@ -21,6 +21,10 @@ header {
   margin-bottom: 20px;
   padding-bottom: 10px;
   border-bottom: 1px solid #ddd;
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 100;
 }
 
 h1 {
@@ -48,6 +52,7 @@ h1 {
 nav {
   display: flex;
   gap: 10px;
+  flex-wrap: wrap; /* allow wrapping on small screens */
 }
 
 button {
@@ -108,6 +113,33 @@ button.active {
 }
 
 @media (max-width: 768px) {
+  .app-name { font-size: 18px; }
+
+  nav { gap: 8px; }
+
+  button { padding: 6px 10px; font-size: 13px; }
+
+  /* cloud controls go to next line and stay visible */
+  .cloud-controls {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: space-between;
+    margin-left: 0 !important;
+  }
+
+  /* make add match button prominent and full width */
+  .add-match-btn-prominent {
+    width: 100%;
+    margin: 0 0 8px 0;
+  }
+
+  .court-count-controls { gap: 6px; }
+  .export-controls { gap: 6px; margin-right: 0; }
+
+  select, input, .score-input, .set-score-input { font-size: 14px; }
+
   .board-container {
     max-height: 70vh;
   }
@@ -731,6 +763,7 @@ th:hover {
   background-color: #f0f0f0; /* Light grey background for the header */
   border-bottom: 1px solid #ccc;
   margin-bottom: 10px; /* Space below the header */
+  flex-wrap: wrap; /* allow items to wrap on small screens */
 }
 
 /* Add Match Modal - Radio Button Styling */
