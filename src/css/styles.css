@@ -197,8 +197,6 @@ button.active {
   #board-export-type { max-width: 110px; }
 }
 
-/* Left-align court count controls */
-.court-count-controls {
 .history-court-grid {
   background-color: #f8f8ff; /* 薄い青色の背景 */
 }
@@ -913,13 +911,12 @@ th:hover {
   background-color: #218838; /* Darker green on hover */
 }
 
-/* Override match-card width specifically for unassigned cards */
-#unassigned-cards .card, .match-card {
-  min-height: auto !important;
-  padding: 6px 8px !important;
-  margin-bottom: 8px !important;
-  width: 280px; /* Or a width that matches court cards, adjust as needed */
-  margin-bottom: 0; /* Remove bottom margin if gap is handling spacing */
+/* Override card width ONLY for unassigned cards */
+#unassigned-cards .card {
+  min-height: auto;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+  width: 280px;
 }
 
 /* Delete Button Styles */
