@@ -1,0 +1,20 @@
+[build]
+  publish = "." # ルートディレクトリを公開
+  command = ""         # ビルドなし（静的アップロード）
+  framework = "#static" # フレームワーク検出を無効化
+
+[dev]
+  command = "node server.js" # ローカル開発時のコマンド
+  port = 3000
+  publish = "."
+
+[[redirects]]
+  from = "/"
+  to = "/op-web/"
+  status = 301
+  force = true
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: blob: *; connect-src 'self' https:; object-src 'none'; font-src 'self' data: https://cdnjs.cloudflare.com; worker-src 'self' blob:; child-src 'self' blob:;"

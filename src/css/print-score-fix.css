@@ -1,0 +1,21 @@
+@media print {
+  .score-input, .set-score-input {
+    height: 40px !important;
+    min-height: 40px !important;
+    line-height: 40px !important;
+    padding: 0 !important;
+    margin: 0 2px !important;
+    font-size: 1.3em !important;
+    font-weight: bold !important;
+    display: block !important;
+    vertical-align: middle !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+  }
+  .score-input:focus, .set-score-input:focus {
+    outline: none !important;
+  }
+  .score-input, .set-score-input, .match-card {
+    overflow: visible !important;
+  }
+}

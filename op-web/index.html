@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MatchDrop - テニストーナメント対戦表</title>
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="../src/css/styles.css">
+  <link rel="stylesheet" href="../src/css/tournament-modal.css">
+  <link rel="icon" href="../assets/icon.png">
+  <style>
+    .cloud-controls { display:flex; gap:8px; align-items:center; margin-left:8px; }
+  </style>
+</head>
+<body>
+  <!-- 新規大会名入力モーダル（UIは既存踏襲） -->
+  <div id="tournament-modal">
+    <div class="modal-content">
+      <h2>新規大会作成</h2>
+      <label for="tournament-name-input">大会名を入力してください</label>
+      <input type="text" id="tournament-name-input" maxlength="30" autocomplete="off" />
+      <div class="modal-btns">
+        <button class="ok-btn" id="tournament-modal-ok">OK</button>
+        <button class="cancel-btn" id="tournament-modal-cancel">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <header>
+    <div class="app-brand">
+      <img src="../assets/icon.png" alt="MatchDrop icon" class="logo-icon">
+      <span class="app-name">MatchDrop</span>
+    </div>
+    <nav style="display: flex; align-items: center; gap: 8px;">
+      <button id="board-view-btn" class="active">対戦表</button>
+      <button id="history-view-btn">試合履歴</button>
+      <label for="tournament-select" style="margin-left: 16px;">大会:</label>
+      <select id="tournament-select" style="min-width: 150px;"></select>
+      <button id="add-tournament-btn" style="background-color: #2196f3; color: #fff;">新規大会</button>
+      <button id="delete-tournament-btn" title="大会を削除" style="background: none; border: none; cursor: pointer; font-size: 1.3em; color: #f44336; padding: 0 8px;">🗑️</button>
+
+      <div class="cloud-controls">
+        <button id="cloud-pull-btn" title="クラウドから取得（クラウド優先）">🔄 更新</button>
+        <button id="cloud-push-btn" title="現在の状態をクラウドへ保存">☁️ 保存</button>
+        <button id="toggle-admin-btn" title="管理者/閲覧者 切替">👤 管理</button>
+        <span id="last-sync-label" style="font-size:0.85em;color:#666;">最終更新: -</span>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <!-- Board View -->
+    <section id="board-view" class="active-view">
+      <div id="court-settings" class="court-settings">
+        <div class="court-settings-header">
+          <button id="add-match-btn" class="add-match-btn-prominent">試合追加</button>
+          <div class="court-count-controls" style="margin-left:auto; margin-right:8px;">
+            <button id="decrease-courts-btn">-</button>
+            <span id="court-count-display" class="court-count-display">12</span>
+            <button id="increase-courts-btn">+</button>
+          </div>
+          <div class="export-controls" style="margin-right:8px;">
+            <select id="board-export-type" style="margin-right:4px;">
+              <option value="csv">CSV形式</option>
+              <option value="screenshot">スクリーンショット</option>
+            </select>
+            <button id="board-export-btn" class="export-btn">書き出し</button>
+          </div>
+          <button id="delete-all-matches-btn" class="delete-all-btn">全削除</button>
+        </div>
+      </div>
+      <div id="court-grid" class="court-grid"></div>
+      <div class="unassigned-section">
+        <div class="unassigned-header">未割当の試合</div>
+        <div id="unassigned-cards" class="unassigned-cards"></div>
+      </div>
+    </section>
+
+    <!-- History View -->
+    <section id="history-view" class="hidden-view">
+      <div class="filter-controls">
+        <div class="filter-group">
+          <label for="court-filter">コート:</label>
+          <select id="court-filter"><option value="all">全コート</option></select>
+        </div>
+        <div class="filter-group">
+          <label for="date-filter">日付:</label>
+          <input type="date" id="date-filter">
+          <button id="clear-date-filter">クリア</button>
+        </div>
+      </div>
+      <div id="history-card-view" class="history-card-view">
+        <div id="history-court-grid" class="court-grid history-court-grid"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Add Match Modal (missing in web copy; required by app.js) -->
+  <div id="add-match-modal" class="modal">
+    <div class="modal-content">
+      <span class="close-modal">&times;</span>
+      <h2>新規試合追加</h2>
+      <form id="add-match-form">
+        <div class="form-group">
+          <label>試合形式:</label>
+          <select id="game-format-select" name="game-format" class="form-control">
+            <option value="5game">5G</option>
+            <option value="4game1set">4G1set</option>
+            <option value="6game1set">6G1set</option>
+            <option value="6game1set_ntb">6G1set NoTB</option>
+            <option value="8game1set">8G-Pro</option>
+            <option value="4game2set">4G2set+10MTB</option>
+            <option value="6game2set">6G2set+10MTB</option>
+            <option value="4game3set">4G3set</option>
+            <option value="6game3set">6G3set</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="player-a">選手A:</label>
+          <input type="text" id="player-a" required>
+        </div>
+        <div class="form-group">
+          <label for="player-b">選手B:</label>
+          <input type="text" id="player-b" required>
+        </div>
+        <div class="form-group">
+          <label for="court-select">コート (任意):</label>
+          <select id="court-select">
+            <option value="">未割当</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="position-select">位置 (任意):</label>
+          <select id="position-select">
+            <option value="">未割当</option>
+            <option value="current">現在の試合</option>
+            <option value="next">次の試合</option>
+            <option value="next2">次々の試合</option>
+            <option value="next3">第4試合</option>
+            <option value="next4">第5試合</option>
+            <option value="next5">第6試合</option>
+          </select>
+        </div>
+        <button type="submit">追加</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ライブラリ -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <!-- Supabase UMD -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+
+  <!-- アプリ既存スクリプト（相対参照：後でop-web配下にコピー予定） -->
+  <script src="../src/js/matchDropStorage.js"></script>
+  <script src="../src/js/local-storage.js"></script>
+  <script src="../src/js/favicon.js"></script>
+  <script src="../src/js/database.js"></script>
+  <script src="../src/js/matchCard.js"></script>
+  <script src="../src/js/board.js"></script>
+  <script src="../src/js/history.js"></script>
+  <script src="../src/js/app.js"></script>
+
+  <!-- クラウド連携 -->
+  <script type="module">
+    import { SUPABASE_URL, SUPABASE_ANON_KEY } from './src/js/supabase-config.js';
+
+    // Supabaseクライアント
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // 簡易パスコード
+    const PASSCODE_KEY = 'op_admin_passcode';
+    const ADMIN_FLAG_KEY = 'op_is_admin';
+
+    function isAdmin() {
+      return localStorage.getItem(ADMIN_FLAG_KEY) === '1';
+    }
+
+    async function ensureTables() {
+      // テーブル作成はダッシュボードで行う運用。ここでは存在前提。
+      return true;
+    }
+
+    async function getDataset(tournamentId, type) {
+      const { data, error } = await supabase
+        .from('datasets')
+        .select('data, updated_at')
+        .eq('tournament_id', tournamentId)
+        .eq('type', type)
+        .maybeSingle();
+      if (error && error.code !== 'PGRST116') throw error;
+      return data || null;
+    }
+
+    async function upsertDataset(tournamentId, type, payload) {
+      const { error } = await supabase
+        .from('datasets')
+        .upsert({ tournament_id: tournamentId, type, data: payload, updated_at: new Date().toISOString() }, { onConflict: 'tournament_id,type' });
+      if (error) throw error;
+      return true;
+    }
+
+    // ローカル<->クラウド（matchesのみMVP）
+    const TOURNAMENT_ID = 'default'; // MVP: 大会1つ
+
+    async function pullLatest() {
+      const ds = await getDataset(TOURNAMENT_ID, 'matches');
+      if (ds && ds.data && Array.isArray(ds.data.matches)) {
+        // ローカルに反映
+        const key = (typeof window.getMatchDataKey === 'function') ? window.getMatchDataKey() : 'tennisTournamentMatches_default';
+        const matches = ds.data.matches;
+        localStorage.setItem(key, JSON.stringify(matches));
+        // 画面再読み込みで反映（MVP）
+        localStorage.setItem('lastSyncTime', new Date().toISOString());
+        location.reload();
+      }
+      document.getElementById('last-sync-label').textContent = '最終更新: ' + new Date().toLocaleString('ja-JP');
+    }
+
+    async function pushNow() {
+      if (!isAdmin()) {
+        alert('管理者モードでのみ保存できます。');
+        return;
+      }
+      // ローカルから取得
+      let matches = [];
+      if (window.db && typeof window.db.getAllMatches === 'function') {
+        matches = await window.db.getAllMatches();
+      }
+      await upsertDataset(TOURNAMENT_ID, 'matches', { matches });
+      document.getElementById('last-sync-label').textContent = '最終更新: ' + new Date().toLocaleString('ja-JP');
+      alert('クラウドに保存しました');
+    }
+
+    // 管理者切替
+    function toggleAdmin() {
+      if (isAdmin()) {
+        localStorage.setItem(ADMIN_FLAG_KEY, '0');
+        alert('閲覧者モードに切替えました');
+      } else {
+        const pass = prompt('管理者パスコードを入力');
+        const saved = localStorage.getItem(PASSCODE_KEY) || '';
+        if (!saved) {
+          // 初回設定
+          if (pass && pass.length >= 4) {
+            localStorage.setItem(PASSCODE_KEY, pass);
+            localStorage.setItem(ADMIN_FLAG_KEY, '1');
+            alert('管理者パスコードを設定し管理者モードに切替えました');
+          } else {
+            alert('4文字以上を設定してください');
+          }
+        } else if (pass === saved) {
+          localStorage.setItem(ADMIN_FLAG_KEY, '1');
+          alert('管理者モードに切替えました');
+        } else {
+          alert('パスコードが違います');
+        }
+      }
+      updateAdminUI();
+    }
+
+    function updateAdminUI() {
+      const admin = isAdmin();
+      document.getElementById('cloud-push-btn').disabled = !admin;
+      document.getElementById('delete-all-matches-btn').disabled = !admin;
+      document.getElementById('add-match-btn').disabled = !admin;
+    }
+
+    // ボタンイベント
+    document.getElementById('cloud-pull-btn').addEventListener('click', pullLatest);
+    document.getElementById('cloud-push-btn').addEventListener('click', pushNow);
+    document.getElementById('toggle-admin-btn').addEventListener('click', toggleAdmin);
+
+    // 初期表示
+    await ensureTables();
+    updateAdminUI();
+  </script>
+</body>
+</html>

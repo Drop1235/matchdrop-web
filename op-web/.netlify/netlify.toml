@@ -1,0 +1,51 @@
+headersOrigin = "config"
+redirectsOrigin = "config"
+plugins = []
+
+[dev]
+command = "node server.js"
+port = 3000.0
+publish = "."
+
+[functions]
+
+[functions."*"]
+
+[build]
+publish = "C:\\Windsurf\\OP_Auto_system\\op-web"
+publishOrigin = "config"
+commandOrigin = "ui"
+base = "C:\\Windsurf\\OP_Auto_system\\op-web"
+command = "# ビルドコマンドは現時点では不要"
+
+[build.environment]
+
+[build.processing]
+
+[build.processing.css]
+
+[build.processing.html]
+
+[build.processing.images]
+
+[build.processing.js]
+
+[build.services]
+
+[[headers]]
+for = "/*"
+
+[headers.values]
+Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: blob: *; connect-src 'self' https:; object-src 'none'; font-src 'self' data: https://cdnjs.cloudflare.com; worker-src 'self' blob:; child-src 'self' blob:;"
+
+[[redirects]]
+from = "/"
+to = "/op-web/"
+status = 301.0
+force = true
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
