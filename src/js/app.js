@@ -100,8 +100,16 @@ document.addEventListener('DOMContentLoaded', () => {
     setCurrentTournamentId(defaultId);
   }
 
+  // 必要なDOM要素参照を先に取得（nullガード付きで運用）
+  const tournamentSelect = document.getElementById('tournament-select');
+  const addTournamentBtn = document.getElementById('add-tournament-btn');
+
   // ドロップダウン反映
   function updateTournamentSelect() {
+    if (!tournamentSelect) {
+      console.error('[APP] tournamentSelect element not found');
+      return;
+    }
     tournaments = getTournaments();
     const currentId = getCurrentTournamentId();
     tournamentSelect.innerHTML = '';
@@ -144,9 +152,13 @@ document.addEventListener('DOMContentLoaded', () => {
     tournamentNameInput.value = '';
   }
 
-  addTournamentBtn.addEventListener('click', () => {
-    openTournamentModal();
-  });
+  if (addTournamentBtn) {
+    addTournamentBtn.addEventListener('click', () => {
+      openTournamentModal();
+    });
+  } else {
+    console.warn('[APP] addTournamentBtn not found');
+  }
   tournamentModalCancel.addEventListener('click', () => {
     closeTournamentModal();
   });
@@ -170,10 +182,12 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // 大会切り替え
-  tournamentSelect.addEventListener('change', (e) => {
-    setCurrentTournamentId(e.target.value);
-    window.location.reload(); // 大会切り替え時に全リロード（後で最適化可）
-  });
+  if (tournamentSelect) {
+    tournamentSelect.addEventListener('change', (e) => {
+      setCurrentTournamentId(e.target.value);
+      window.location.reload(); // 大会切り替え時に全リロード（後で最適化可）
+    });
+  }
   // 「更新」ボタンのクリックイベント
   const refreshBtn = document.getElementById('refresh-btn');
   if (refreshBtn) {
