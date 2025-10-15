@@ -261,6 +261,10 @@
 
     function updateAdminUI() {
       const admin = isAdmin();
+      // Viewer mode: when not admin, add class to hide edit/admin UI via CSS
+      document.body.classList.toggle('viewer-mode', !admin);
+
+      // Keep button disabled states for safety
       document.getElementById('cloud-push-btn').disabled = !admin;
       document.getElementById('delete-all-matches-btn').disabled = !admin;
       document.getElementById('add-match-btn').disabled = !admin;
