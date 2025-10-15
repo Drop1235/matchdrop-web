@@ -47,6 +47,8 @@
       </div>
     </nav>
   </header>
+  <!-- Viewer-mode admin re-entry button (shown only when body has viewer-mode) -->
+  <button id="viewer-admin-entry" class="viewer-admin-entry" title="管理モード">👤</button>
 
   <main>
     <!-- Board View -->
@@ -274,6 +276,7 @@
     document.getElementById('cloud-pull-btn').addEventListener('click', pullLatest);
     document.getElementById('cloud-push-btn').addEventListener('click', pushNow);
     document.getElementById('toggle-admin-btn').addEventListener('click', toggleAdmin);
+    document.getElementById('viewer-admin-entry').addEventListener('click', toggleAdmin);
 
     // 初期表示
     await ensureTables();

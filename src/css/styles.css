@@ -1457,6 +1457,28 @@ th:hover {
   overflow: visible !important;
 }
 
+/* Admin re-entry button (visible only in viewer mode) */
+.viewer-admin-entry {
+  display: none;
+  position: fixed;
+  right: 12px;
+  top: 12px;
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+  background: #333;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  z-index: 2200;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  line-height: 1;
+}
+body.viewer-mode .viewer-admin-entry { display: inline-flex; }
+
 /* =============================
    Viewer Mode (閲覧者モード)
    Add 'viewer-mode' to <body> to hide edit/admin controls
