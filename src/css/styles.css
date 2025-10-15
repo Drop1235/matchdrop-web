@@ -1456,3 +1456,18 @@ th:hover {
   padding: 4px 0 !important;
   overflow: visible !important;
 }
+
+/* =============================
+   Viewer Mode (閲覧者モード)
+   Add 'viewer-mode' to <body> to hide edit/admin controls
+   ============================= */
+body.viewer-mode nav,
+body.viewer-mode .court-settings,
+body.viewer-mode .court-settings-header,
+body.viewer-mode .cloud-controls,
+body.viewer-mode .add-match-btn-prominent {
+  display: none !important;
+}
+
+/* Ensure content uses full space when controls are hidden */
+body.viewer-mode { padding-bottom: 0 !important; }
