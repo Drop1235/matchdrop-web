@@ -41,6 +41,16 @@ class MemoryMatchDatabase {
     // Normalize both sides to string to avoid type mismatches (e.g., '12' vs 12)
     const targetId = String(id);
     this.matches = this.matches.filter(m => String(m.id) !== targetId);
+    // Append to per-tournament tombstone list so external sync won't resurrect it
+    try {
+      if (typeof window.getDeletedIdsKey === 'function') {
+        const key = window.getDeletedIdsKey();
+        const raw = localStorage.getItem(key);
+        const arr = raw ? JSON.parse(raw) : [];
+        if (!arr.includes(targetId)) arr.push(targetId);
+        localStorage.setItem(key, JSON.stringify(arr));
+      }
+    } catch (_) { /* ignore */ }
     saveMatchData(this.matches); // 削除・保存
     return Promise.resolve();
   }

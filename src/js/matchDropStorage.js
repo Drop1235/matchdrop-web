@@ -14,6 +14,12 @@
     return 'tennisTournamentMatches_' + currentId;
   }
 
+  // Tombstone list for deleted matches (per tournament)
+  function getDeletedIdsKey() {
+    const currentId = localStorage.getItem('currentTournamentId') || 'default';
+    return 'deletedMatchIds_' + currentId;
+  }
+
 /**
  * localStorageからmatchData（配列）を読み込む
  * データ構造が不正な場合は空配列を返す
@@ -21,20 +27,37 @@
  */
   function loadMatchData() {
     const MATCH_DATA_KEY = getMatchDataKey();
-  try {
-    const stored = localStorage.getItem(MATCH_DATA_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed)) {
-        return parsed;
+    try {
+      const stored = localStorage.getItem(MATCH_DATA_KEY);
+      let data = [];
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          data = parsed;
+        }
       }
+
+      // Filter out tombstoned (deleted) matches by ID (string-compare)
+      try {
+        const delKey = getDeletedIdsKey();
+        const deletedJson = localStorage.getItem(delKey);
+        const deletedSet = new Set(
+          deletedJson ? (JSON.parse(deletedJson) || []).map(x => String(x)) : []
+        );
+        if (deletedSet.size > 0) {
+          data = data.filter(m => !deletedSet.has(String(m && m.id)));
+        }
+      } catch (e) {
+        // ignore filter errors
+      }
+
+      return data;
+    } catch (e) {
+      // 不正なデータの場合は何もしない
+      console.warn('matchDataの読み込みに失敗:', e);
     }
-  } catch (e) {
-    // 不正なデータの場合は何もしない
-    console.warn('matchDataの読み込みに失敗:', e);
+    return [];
   }
-  return [];
-}
 
 /**
  * matchDataをlocalStorageに保存（JSON形式）
@@ -79,6 +102,7 @@
   // window へ公開
   // getMatchDataKey も必要に応じて公開
   global.getMatchDataKey = getMatchDataKey;
+  global.getDeletedIdsKey = getDeletedIdsKey;
   global.loadMatchData = loadMatchData;
   global.saveMatchData = saveMatchData;
   global.setupMatchDropStorageSync = setupMatchDropStorageSync;
