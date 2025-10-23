@@ -38,7 +38,9 @@ class MemoryMatchDatabase {
   }
 
   deleteMatch(id) {
-    this.matches = this.matches.filter(m => m.id !== id);
+    // Normalize both sides to string to avoid type mismatches (e.g., '12' vs 12)
+    const targetId = String(id);
+    this.matches = this.matches.filter(m => String(m.id) !== targetId);
     saveMatchData(this.matches); // 削除・保存
     return Promise.resolve();
   }

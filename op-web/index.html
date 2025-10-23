@@ -259,13 +259,16 @@
           const matches = ds.data.matches;
           console.log('[OP] pullLatest matches len=', matches.length, 'saveKey=', key);
           localStorage.setItem(key, JSON.stringify(matches));
-          localStorage.setItem('lastSyncTime', new Date().toISOString());
-          if (label) label.textContent = '最終更新: ' + new Date().toLocaleString('ja-JP');
+          const nowIso = new Date().toISOString();
+          localStorage.setItem('lastSyncTime', nowIso);
+          if (label) label.textContent = '最終更新: ' + new Date(nowIso).toLocaleString('ja-JP');
           location.reload();
           return;
         }
         console.warn('[OP] pullLatest: no dataset for this tournament or empty');
-        if (label) label.textContent = '最終更新: ' + new Date().toLocaleString('ja-JP');
+        const nowIso = new Date().toISOString();
+        localStorage.setItem('lastSyncTime', nowIso);
+        if (label) label.textContent = '最終更新: ' + new Date(nowIso).toLocaleString('ja-JP');
       } catch (err) {
         console.error('[OP] pullLatest error', err);
         const label = document.getElementById('last-sync-label');
@@ -362,6 +365,15 @@
       await ensureTables();
       updateAdminUI();
       await pullMeta();
+
+      // 初期化時に最終更新時刻を localStorage から反映
+      try {
+        const ts = localStorage.getItem('lastSyncTime');
+        const label = document.getElementById('last-sync-label');
+        if (ts && label) {
+          label.textContent = '最終更新: ' + new Date(ts).toLocaleString('ja-JP');
+        }
+      } catch {}
     });
   </script>
 </body>
