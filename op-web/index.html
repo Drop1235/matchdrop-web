@@ -194,18 +194,18 @@
   </script>
 
   <!-- アプリ既存スクリプト（相対参照：後でop-web配下にコピー予定） -->
-  <script src="../src/js/matchDropStorage.js"></script>
-  <script src="../src/js/local-storage.js"></script>
-  <script src="../src/js/favicon.js"></script>
-  <script src="../src/js/database.js"></script>
-  <script src="../src/js/matchCard.js"></script>
-  <script src="../src/js/board.js"></script>
-  <script src="../src/js/history.js"></script>
-  <script src="../src/js/app.js"></script>
+  <script src="../src/js/matchDropStorage.js?v=2025-10-23-ingest2"></script>
+  <script src="../src/js/local-storage.js?v=2025-10-23-ingest2"></script>
+  <script src="../src/js/favicon.js?v=2025-10-23-ingest2"></script>
+  <script src="../src/js/database.js?v=2025-10-23-ingest2"></script>
+  <script src="../src/js/matchCard.js?v=2025-10-23-ingest2"></script>
+  <script src="../src/js/board.js?v=2025-10-23-ingest2"></script>
+  <script src="../src/js/history.js?v=2025-10-23-ingest2"></script>
+  <script src="../src/js/app.js?v=2025-10-23-ingest2"></script>
 
   <!-- クラウド連携 -->
   <script type="module">
-    import { SUPABASE_URL, SUPABASE_ANON_KEY } from './src/js/supabase-config.js';
+    import { SUPABASE_URL, SUPABASE_ANON_KEY } from './src/js/supabase-config.js?v=2025-10-23-ingest2';
 
     // Supabaseクライアント
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -244,26 +244,41 @@
 
     // ローカル<->クラウド
     // 大会IDは MatchDrop_Web 側の localStorage と連携（app.js で管理）
-    const TOURNAMENT_ID = (localStorage.getItem('currentTournamentId')) || 'default';
+    function getTournamentId() {
+      return (localStorage.getItem('currentTournamentId')) || 'default';
+    }
 
     async function pullLatest() {
-      const ds = await getDataset(TOURNAMENT_ID, 'matches');
-      if (ds && ds.data && Array.isArray(ds.data.matches)) {
-        // ローカルに反映
-        const key = (typeof window.getMatchDataKey === 'function') ? window.getMatchDataKey() : 'tennisTournamentMatches_default';
-        const matches = ds.data.matches;
-        localStorage.setItem(key, JSON.stringify(matches));
-        // 画面再読み込みで反映（MVP）
-        localStorage.setItem('lastSyncTime', new Date().toISOString());
-        location.reload();
+      try {
+        const tid = getTournamentId();
+        console.log('[OP] pullLatest clicked. tid=', tid);
+        const ds = await getDataset(tid, 'matches');
+        const label = document.getElementById('last-sync-label');
+        if (ds && ds.data && Array.isArray(ds.data.matches)) {
+          const key = (typeof window.getMatchDataKey === 'function') ? window.getMatchDataKey() : 'tennisTournamentMatches_' + tid;
+          const matches = ds.data.matches;
+          console.log('[OP] pullLatest matches len=', matches.length, 'saveKey=', key);
+          localStorage.setItem(key, JSON.stringify(matches));
+          localStorage.setItem('lastSyncTime', new Date().toISOString());
+          if (label) label.textContent = '最終更新: ' + new Date().toLocaleString('ja-JP');
+          location.reload();
+          return;
+        }
+        console.warn('[OP] pullLatest: no dataset for this tournament or empty');
+        if (label) label.textContent = '最終更新: ' + new Date().toLocaleString('ja-JP');
+      } catch (err) {
+        console.error('[OP] pullLatest error', err);
+        const label = document.getElementById('last-sync-label');
+        if (label) label.textContent = '最終更新: エラー';
+        alert('更新に失敗しました: ' + (err?.message || err));
       }
-      document.getElementById('last-sync-label').textContent = '最終更新: ' + new Date().toLocaleString('ja-JP');
     }
 
     // メタ情報（カテゴリなど）を取得してUIに反映
     async function pullMeta() {
       try {
-        const ds = await getDataset(TOURNAMENT_ID, 'meta');
+        const tid = getTournamentId();
+        const ds = await getDataset(tid, 'meta');
         const cat = ds && ds.data ? ds.data.category : '';
         const el = document.getElementById('category-input');
         if (el && cat && !el.value) el.value = cat;
@@ -282,7 +297,8 @@
       if (window.db && typeof window.db.getAllMatches === 'function') {
         matches = await window.db.getAllMatches();
       }
-      await upsertDataset(TOURNAMENT_ID, 'matches', { matches });
+      const tid = getTournamentId();
+      await upsertDataset(tid, 'matches', { matches });
       document.getElementById('last-sync-label').textContent = '最終更新: ' + new Date().toLocaleString('ja-JP');
       alert('クラウドに保存しました');
     }
@@ -325,20 +341,28 @@
       document.getElementById('add-match-btn').disabled = !admin;
     }
 
-    // ボタンイベント
-    document.getElementById('cloud-pull-btn').addEventListener('click', async () => {
-      await pullLatest();
+    // 関数をデバッグしやすいように公開
+    window.pullLatest = pullLatest;
+    window.pullMeta = pullMeta;
+    window.pushNow = pushNow;
+
+    // ボタンイベント（DOM構築後に確実にバインド）
+    document.addEventListener('DOMContentLoaded', async () => {
+      const pullBtn = document.getElementById('cloud-pull-btn');
+      const pushBtn = document.getElementById('cloud-push-btn');
+      const toggleBtn = document.getElementById('toggle-admin-btn');
+      const adminEntry = document.getElementById('viewer-admin-entry');
+      if (pullBtn) pullBtn.addEventListener('click', async () => { await pullLatest(); await pullMeta(); });
+      if (pushBtn) pushBtn.addEventListener('click', pushNow);
+      if (toggleBtn) toggleBtn.addEventListener('click', toggleAdmin);
+      if (adminEntry) adminEntry.addEventListener('click', toggleAdmin);
+      console.log('[OP] cloud controls bound');
+
+      // 初期表示
+      await ensureTables();
+      updateAdminUI();
       await pullMeta();
     });
-    document.getElementById('cloud-push-btn').addEventListener('click', pushNow);
-    document.getElementById('toggle-admin-btn').addEventListener('click', toggleAdmin);
-    document.getElementById('viewer-admin-entry').addEventListener('click', toggleAdmin);
-
-    // 初期表示
-    await ensureTables();
-    updateAdminUI();
-    // 初期表示時にもメタ情報を取り込み
-    await pullMeta();
   </script>
 </body>
 </html>

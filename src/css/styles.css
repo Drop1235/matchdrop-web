@@ -911,12 +911,15 @@ th:hover {
   background-color: #218838; /* Darker green on hover */
 }
 
-/* Override card width ONLY for unassigned cards */
-#unassigned-cards .card {
+/* Override card width ONLY for unassigned cards (ensure same feel as court rows) */
+#unassigned-cards .match-card {
   min-height: auto;
   padding: 6px 8px;
   margin-bottom: 8px;
-  width: 280px;
+  /* Fix width so cards are not stretched full-width on desktop */
+  flex: 0 0 300px; /* matches court-grid min column width */
+  width: 300px;
+  max-width: 320px;
 }
 
 /* Delete Button Styles */
