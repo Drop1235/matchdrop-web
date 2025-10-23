@@ -65,6 +65,7 @@ class MatchCard {
     }
 
     if (!this.match.memo) this.match.memo = '';
+    if (!this.match.category) this.match.category = '';
     this.match.tieBreakA = this.match.tieBreakA || '';
     this.match.tieBreakB = this.match.tieBreakB || '';
     
@@ -243,6 +244,14 @@ class MatchCard {
     // rightWrapをheaderDivに追加（削除ボタンの前に）
     headerDiv.appendChild(rightWrap);
     headerDiv.appendChild(deleteButton);
+
+    // カテゴリ表示（メモと名前の間）
+    const categoryRow = document.createElement('div');
+    categoryRow.className = 'match-card-category';
+    categoryRow.style.margin = '4px 0 2px 0';
+    categoryRow.style.fontSize = '12px';
+    categoryRow.style.color = '#666';
+    categoryRow.textContent = this.match.category || '';
 
     // プレイヤー情報（縦に配置）
     const playersContainer = document.createElement('div');
@@ -750,8 +759,11 @@ class MatchCard {
       }
     duplicate block end */
 
-  card.appendChild(headerDiv);
-  card.appendChild(playersContainer); // playersContainer 内に TB 行も含まれるようになった
+  if (!card.contains(headerDiv)) {
+    card.appendChild(headerDiv);
+    if (typeof categoryRow !== 'undefined') card.appendChild(categoryRow);
+    card.appendChild(playersContainer);
+  }
 
   // TB行を playersContainer の下に追加（存在する場合のみ）
   if (this.tiebreakRow && !playersContainer.contains(this.tiebreakRow)) {
@@ -763,6 +775,85 @@ class MatchCard {
     this._checkAndToggleTiebreakUI();
   return card;
 } // End of createCardElement
+
+openQuickEditPanel(ctx) {
+  const { anchor, categoryRow, gameFormatDisplay, playerAInput, playerBInput } = ctx;
+  const panel = document.createElement('div');
+  panel.style.position = 'absolute';
+  panel.style.zIndex = 1000;
+  const rect = anchor.getBoundingClientRect();
+  panel.style.left = `${rect.left + window.scrollX + 8}px`;
+  panel.style.top = `${rect.top + window.scrollY + 8}px`;
+  panel.style.background = '#fff';
+  panel.style.border = '1px solid #ccc';
+  panel.style.borderRadius = '8px';
+  panel.style.boxShadow = '0 4px 12px rgba(0,0,0,0.12)';
+  panel.style.padding = '10px';
+  panel.style.display = 'grid';
+  panel.style.gridTemplateColumns = 'auto auto';
+  panel.style.gap = '6px 8px';
+
+  const labelFmt = document.createElement('label');
+  labelFmt.textContent = '形式';
+  const selFmt = document.createElement('select');
+  Object.entries(this.gameFormatOptions).forEach(([val, label]) => {
+    const opt = document.createElement('option');
+    opt.value = val; opt.textContent = label; selFmt.appendChild(opt);
+  });
+  selFmt.value = (this.match.gameFormat || '5game');
+
+  const labelCat = document.createElement('label');
+  labelCat.textContent = 'カテゴリ';
+  const inpCat = document.createElement('input');
+  inpCat.type = 'text';
+  inpCat.value = this.match.category || '';
+
+  const labelA = document.createElement('label');
+  labelA.textContent = '選手A';
+  const inpA = document.createElement('input');
+  inpA.type = 'text';
+  inpA.value = this.match.playerA || '';
+
+  const labelB = document.createElement('label');
+  labelB.textContent = '選手B';
+  const inpB = document.createElement('input');
+  inpB.type = 'text';
+  inpB.value = this.match.playerB || '';
+
+  const btnSave = document.createElement('button');
+  btnSave.textContent = '保存';
+  btnSave.style.gridColumn = '1 / span 2';
+  btnSave.addEventListener('click', async () => {
+    const newFmt = selFmt.value;
+    const newCat = inpCat.value;
+    const newA = inpA.value;
+    const newB = inpB.value;
+    await this.updateMatchData({ gameFormat: newFmt, category: newCat, playerA: newA, playerB: newB });
+    if (categoryRow) categoryRow.textContent = newCat || '';
+    if (playerAInput) playerAInput.value = newA || '';
+    if (playerBInput) playerBInput.value = newB || '';
+    if (gameFormatDisplay) {
+      const label = this.gameFormatOptions[newFmt] || newFmt;
+      gameFormatDisplay.textContent = label;
+    }
+    this._checkAndToggleTiebreakUI();
+    document.body.removeChild(panel);
+  });
+
+  const btnCancel = document.createElement('button');
+  btnCancel.textContent = 'キャンセル';
+  btnCancel.style.marginLeft = '8px';
+  btnCancel.addEventListener('click', () => {
+    document.body.removeChild(panel);
+  });
+
+  panel.appendChild(labelFmt); panel.appendChild(selFmt);
+  panel.appendChild(labelCat); panel.appendChild(inpCat);
+  panel.appendChild(labelA); panel.appendChild(inpA);
+  panel.appendChild(labelB); panel.appendChild(inpB);
+  panel.appendChild(btnSave); panel.appendChild(btnCancel);
+  document.body.appendChild(panel);
+}
 
   // Handles changes in the tiebreak score input fields
   _handleTiebreakChange(event) {
