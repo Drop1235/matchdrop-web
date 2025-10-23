@@ -154,6 +154,24 @@ class MatchCard {
       this.handleDeleteMatch();
     });
 
+    // 編集ボタン（モバイル用トリガー）
+    const editButton = document.createElement('span');
+    editButton.className = 'edit-button';
+    editButton.textContent = '✎';
+    editButton.title = '編集';
+    editButton.style.marginLeft = '8px';
+    editButton.style.cursor = 'pointer';
+    editButton.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.openQuickEditPanel({
+        anchor: card,
+        categoryRow,
+        gameFormatDisplay,
+        playerAInput,
+        playerBInput,
+      });
+    });
+
     // --- 試合形式・時間（右側に寄せる） ---
     // ラッパーdivでまとめて右寄せ
     const rightWrap = document.createElement('div');
@@ -243,6 +261,7 @@ class MatchCard {
 
     // rightWrapをheaderDivに追加（削除ボタンの前に）
     headerDiv.appendChild(rightWrap);
+    headerDiv.appendChild(editButton);
     headerDiv.appendChild(deleteButton);
 
     // カテゴリ表示（メモと名前の間）
@@ -770,9 +789,28 @@ class MatchCard {
     playersContainer.appendChild(this.tiebreakRow);
   }
 
+  // 空白領域ダブルクリックでクイック編集（カード/ヘッダー/カテゴリ/プレイヤー領域すべてにバインド）
+  const attachEditDblclick = (el) => {
+    if (!el) return;
+    el.addEventListener('dblclick', (e) => {
+      const interactive = e.target.closest('input, select, button, .delete-button, .win-label, .set-score-input, .score-input, .tiebreak-score-input');
+      if (interactive) return; // 入力系は除外
+      console.log('[MATCH_CARD] dblclick openQuickEditPanel id=', this.match.id);
+      this.openQuickEditPanel({
+        anchor: card,
+        categoryRow,
+        gameFormatDisplay,
+        playerAInput,
+        playerBInput,
+      });
+    });
+  };
+  attachEditDblclick(card);
+  attachEditDblclick(headerDiv);
+  attachEditDblclick(categoryRow);
+  attachEditDblclick(playersContainer);
 
-
-    this._checkAndToggleTiebreakUI();
+  this._checkAndToggleTiebreakUI();
   return card;
 } // End of createCardElement
 
