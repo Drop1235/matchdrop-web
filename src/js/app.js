@@ -9,6 +9,31 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
+  // OP ingestion fallback: Ensure tid/tname from URL are reflected in localStorage before using tournaments
+  try {
+    const tid = params.get('tid');
+    const tname = params.get('tname');
+    if (tid && tname) {
+      console.log('[OP ingest-app] query params detected', { tid, tname });
+      const raw = localStorage.getItem('tournaments');
+      const list = raw ? JSON.parse(raw) : [];
+      let nextList = Array.isArray(list) ? list.slice() : [];
+      const idx = nextList.findIndex(t => t && t.id === tid);
+      if (idx === -1) {
+        nextList.push({ id: tid, name: tname });
+      } else {
+        nextList[idx] = { id: tid, name: tname };
+      }
+      localStorage.setItem('tournaments', JSON.stringify(nextList));
+      localStorage.setItem('currentTournamentId', tid);
+      console.log('[OP ingest-app] tournaments updated', nextList);
+    } else {
+      console.log('[OP ingest-app] no tid/tname in URL');
+    }
+  } catch (e) {
+    console.warn('[OP ingest-app] failed to ingest tid/tname', e);
+  }
+
 
   // 大会リスト取得・保存用
   function getTournaments() {

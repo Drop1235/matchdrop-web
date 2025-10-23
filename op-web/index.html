@@ -30,6 +30,7 @@
     <div class="app-brand">
       <img src="../assets/icon.png" alt="MatchDrop icon" class="logo-icon">
       <span class="app-name">MatchDrop</span>
+      <span id="op-version-tag" style="margin-left:8px;color:#777;font-size:12px;">v-op-2025-10-22-ingest-name-1</span>
     </div>
     <nav style="display: flex; align-items: center; gap: 8px;">
       <button id="board-view-btn" class="active">対戦表</button>
@@ -118,6 +119,10 @@
           </select>
         </div>
         <div class="form-group">
+          <label for="category-input">カテゴリ (任意):</label>
+          <input type="text" id="category-input" placeholder="例: 男子シングルス 12歳以上">
+        </div>
+        <div class="form-group">
           <label for="player-a">選手A:</label>
           <input type="text" id="player-a" required>
         </div>
@@ -152,6 +157,41 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <!-- Supabase UMD -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+
+  <!-- URLパラメータから大会ID/名称を取り込み（tid/tname）。app.js 初期化前に実行する必要あり -->
+  <script>
+    (function () {
+      try {
+        const sp = new URLSearchParams(location.search);
+        const tid = sp.get('tid');
+        const tname = sp.get('tname');
+        if (tid && tname) {
+          console.log('[OP ingest] query params detected', { tid, tname });
+          const raw = localStorage.getItem('tournaments');
+          const list = raw ? JSON.parse(raw) : [];
+          if (!Array.isArray(list)) {
+            localStorage.setItem('tournaments', JSON.stringify([]));
+          }
+          let nextList = Array.isArray(list) ? list.slice() : [];
+          const idx = nextList.findIndex(t => t && t.id === tid);
+          if (idx === -1) {
+            // 新規追加
+            nextList.push({ id: tid, name: tname });
+          } else {
+            // 既存の名称を最新に更新（ブランケット側の大会名を優先）
+            nextList[idx] = { id: tid, name: tname };
+          }
+          localStorage.setItem('tournaments', JSON.stringify(nextList));
+          localStorage.setItem('currentTournamentId', tid);
+          console.log('[OP ingest] tournaments updated', nextList);
+        } else {
+          console.log('[OP ingest] no tid/tname in URL');
+        }
+      } catch (e) {
+        console.warn('[OP] failed to ingest tid/tname from URL', e);
+      }
+    })();
+  </script>
 
   <!-- アプリ既存スクリプト（相対参照：後でop-web配下にコピー予定） -->
   <script src="../src/js/matchDropStorage.js"></script>
@@ -202,8 +242,9 @@
       return true;
     }
 
-    // ローカル<->クラウド（matchesのみMVP）
-    const TOURNAMENT_ID = 'default'; // MVP: 大会1つ
+    // ローカル<->クラウド
+    // 大会IDは MatchDrop_Web 側の localStorage と連携（app.js で管理）
+    const TOURNAMENT_ID = (localStorage.getItem('currentTournamentId')) || 'default';
 
     async function pullLatest() {
       const ds = await getDataset(TOURNAMENT_ID, 'matches');
@@ -217,6 +258,18 @@
         location.reload();
       }
       document.getElementById('last-sync-label').textContent = '最終更新: ' + new Date().toLocaleString('ja-JP');
+    }
+
+    // メタ情報（カテゴリなど）を取得してUIに反映
+    async function pullMeta() {
+      try {
+        const ds = await getDataset(TOURNAMENT_ID, 'meta');
+        const cat = ds && ds.data ? ds.data.category : '';
+        const el = document.getElementById('category-input');
+        if (el && cat && !el.value) el.value = cat;
+      } catch (e) {
+        console.warn('[OP] pullMeta failed', e);
+      }
     }
 
     async function pushNow() {
@@ -273,7 +326,10 @@
     }
 
     // ボタンイベント
-    document.getElementById('cloud-pull-btn').addEventListener('click', pullLatest);
+    document.getElementById('cloud-pull-btn').addEventListener('click', async () => {
+      await pullLatest();
+      await pullMeta();
+    });
     document.getElementById('cloud-push-btn').addEventListener('click', pushNow);
     document.getElementById('toggle-admin-btn').addEventListener('click', toggleAdmin);
     document.getElementById('viewer-admin-entry').addEventListener('click', toggleAdmin);
@@ -281,6 +337,8 @@
     // 初期表示
     await ensureTables();
     updateAdminUI();
+    // 初期表示時にもメタ情報を取り込み
+    await pullMeta();
   </script>
 </body>
 </html>
