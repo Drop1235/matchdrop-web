@@ -243,9 +243,23 @@
     }
 
     // ローカル<->クラウド
-    // 大会IDは MatchDrop_Web 側の localStorage と連携（app.js で管理）
+    // 大会IDは URL ?tid= を最優先、その次に localStorage、最後に既存リストの単独エントリ
     function getTournamentId() {
-      return (localStorage.getItem('currentTournamentId')) || 'default';
+      try {
+        const sp = new URLSearchParams(location.search);
+        const urlTid = sp.get('tid');
+        if (urlTid) return urlTid;
+      } catch {}
+      const lsTid = localStorage.getItem('currentTournamentId');
+      if (lsTid) return lsTid;
+      try {
+        const list = JSON.parse(localStorage.getItem('tournaments') || '[]');
+        if (Array.isArray(list) && list.length === 1 && list[0] && list[0].id) {
+          localStorage.setItem('currentTournamentId', list[0].id);
+          return list[0].id;
+        }
+      } catch {}
+      return 'default';
     }
 
     async function pullLatest() {
