@@ -331,7 +331,26 @@
             }
           } catch {}
 
+          // If cloud has data, write to local and in-memory DB
+          const prevRaw = localStorage.getItem(key) || '[]';
+          const prevArr = (()=>{ try { return JSON.parse(prevRaw) } catch { return [] } })();
           localStorage.setItem(key, JSON.stringify(matches));
+          try {
+            if (window.db && typeof window.db.getAllMatches === 'function') {
+              // Replace in-memory dataset if it differs
+              const current = await window.db.getAllMatches();
+              const currLen = Array.isArray(current) ? current.length : 0;
+              if ((currLen !== matches.length) || JSON.stringify(current) !== JSON.stringify(matches)) {
+                if (typeof window.db.deleteAllMatches === 'function') {
+                  await window.db.deleteAllMatches();
+                }
+                // Re-add
+                if (typeof window.db.addMatch === 'function') {
+                  for (const m of matches) { await window.db.addMatch(m); }
+                }
+              }
+            }
+          } catch (e) { console.warn('sync in-memory after pull failed', e); }
 
           // Apply shared settings (courtCount, courtNames) if present
           const settings = ds.data.settings || {};
@@ -354,15 +373,19 @@
           const nowIso = new Date().toISOString();
           localStorage.setItem('lastSyncTime', nowIso);
           if (label) label.textContent = '最終更新: ' + new Date(nowIso).toLocaleString('ja-JP');
-          // Mark that we have pulled once in this session to prevent re-auto-pull loop after reload
-          try { sessionStorage.setItem('op_auto_pulled_once', '1'); } catch {}
-          // Cache-busting reload so that app.js reinitializes with the newly written localStorage
-          try {
-            const u = new URL(location.href);
-            u.searchParams.set('_v', Date.now());
-            location.replace(u.toString());
-          } catch {
-            location.reload();
+          // Only reload if dataset actually changed and is non-empty to avoid clearing transiently
+          const changed = JSON.stringify(prevArr) !== JSON.stringify(matches);
+          if (changed && matches.length > 0) {
+            // Mark that we have pulled once in this session to prevent re-auto-pull loop after reload
+            try { sessionStorage.setItem('op_auto_pulled_once', '1'); } catch {}
+            // Cache-busting reload so that app.js reinitializes with the newly written localStorage
+            try {
+              const u = new URL(location.href);
+              u.searchParams.set('_v', Date.now());
+              location.replace(u.toString());
+            } catch {
+              location.reload();
+            }
           }
           return;
         }
@@ -406,16 +429,23 @@
         matches = await window.db.getAllMatches();
       }
       const tid = getTournamentId();
+      console.log('[OP] pushNow tid=', tid, 'matches.len=', matches?.length || 0);
       // Collect board settings to share across devices
       const board = window.boardInstance || window.board;
       const settings = {
         courtCount: board && typeof board.numberOfCourts === 'number' ? board.numberOfCourts : undefined,
         courtNames: board && board.courtNames ? board.courtNames : undefined,
       };
-      await upsertDataset(tid, 'matches', { matches, settings });
+      const rev = Date.now();
+      await upsertDataset(tid, 'matches', { matches, settings, _rev: rev });
+      try { localStorage.setItem('lastPushRev_' + tid, String(rev)); } catch {}
       document.getElementById('last-sync-label').textContent = '最終更新: ' + new Date().toLocaleString('ja-JP');
       showToast('クラウドに保存しました');
     }
+
+    // expose for external callers (e.g., board.js)
+    window.pushNow = pushNow;
+    window.pullLatest = pullLatest;
 
     // 管理者切替
     function toggleAdmin() {
