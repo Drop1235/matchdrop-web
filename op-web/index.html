@@ -1,40 +1,3 @@
-    // Simple toast helper (auto-dismiss, bottom-right)
-    function showToast(message, opts = {}) {
-      try {
-        const duration = opts.duration ?? 2000;
-        const containerId = 'toast-container';
-        let container = document.getElementById(containerId);
-        if (!container) {
-          container = document.createElement('div');
-          container.id = containerId;
-          container.style.position = 'fixed';
-          container.style.right = '12px';
-          container.style.bottom = '12px';
-          container.style.display = 'flex';
-          container.style.flexDirection = 'column';
-          container.style.gap = '8px';
-          container.style.zIndex = '9999';
-          document.body.appendChild(container);
-        }
-        const el = document.createElement('div');
-        el.textContent = message;
-        el.style.padding = '8px 12px';
-        el.style.background = 'rgba(0,0,0,0.85)';
-        el.style.color = '#fff';
-        el.style.borderRadius = '6px';
-        el.style.fontSize = '13px';
-        el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
-        el.style.opacity = '0';
-        el.style.transition = 'opacity 150ms ease-out';
-        container.appendChild(el);
-        requestAnimationFrame(() => { el.style.opacity = '1'; });
-        setTimeout(() => {
-          el.style.opacity = '0';
-          setTimeout(() => { el.remove(); }, 200);
-        }, duration);
-      } catch {}
-    }
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -277,6 +240,43 @@
         .upsert({ tournament_id: tournamentId, type, data: payload, updated_at: new Date().toISOString() }, { onConflict: 'tournament_id,type' });
       if (error) throw error;
       return true;
+    }
+
+    // Simple toast helper (auto-dismiss, bottom-right)
+    function showToast(message, opts = {}) {
+      try {
+        const duration = opts.duration ?? 2000;
+        const containerId = 'toast-container';
+        let container = document.getElementById(containerId);
+        if (!container) {
+          container = document.createElement('div');
+          container.id = containerId;
+          container.style.position = 'fixed';
+          container.style.right = '12px';
+          container.style.bottom = '12px';
+          container.style.display = 'flex';
+          container.style.flexDirection = 'column';
+          container.style.gap = '8px';
+          container.style.zIndex = '9999';
+          document.body.appendChild(container);
+        }
+        const el = document.createElement('div');
+        el.textContent = message;
+        el.style.padding = '8px 12px';
+        el.style.background = 'rgba(0,0,0,0.85)';
+        el.style.color = '#fff';
+        el.style.borderRadius = '6px';
+        el.style.fontSize = '13px';
+        el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+        el.style.opacity = '0';
+        el.style.transition = 'opacity 150ms ease-out';
+        container.appendChild(el);
+        requestAnimationFrame(() => { el.style.opacity = '1'; });
+        setTimeout(() => {
+          el.style.opacity = '0';
+          setTimeout(() => { el.remove(); }, 200);
+        }, duration);
+      } catch {}
     }
 
     // ローカル<->クラウド

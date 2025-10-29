@@ -270,8 +270,12 @@ class Board {
     console.log('[BOARD] MatchCard match game format:', matchCard.match.gameFormat);
     console.log('[BOARD] MatchCard element:', matchCard.element);
     
+    // 型を正規化
+    const courtNum = match.courtNumber != null ? parseInt(match.courtNumber) : null;
+    const rowPos = match.rowPosition ? String(match.rowPosition) : '';
+
     // 未割当の場合は未割当カードエリアに配置
-    if (!match.courtNumber || !match.rowPosition) {
+    if (!courtNum || !rowPos) {
       const unassignedCards = document.getElementById('unassigned-cards');
       if (unassignedCards) {
         unassignedCards.appendChild(matchCard.element);
@@ -280,10 +284,10 @@ class Board {
     }
     
     // Find the target court and row
-    const courtSlot = document.querySelector(`.court-slot[data-court-number="${match.courtNumber}"]`);
+    const courtSlot = document.querySelector(`.court-slot[data-court-number="${courtNum}"]`);
     if (!courtSlot) return;
     
-    const row = courtSlot.querySelector(`.court-row[data-row-type="${match.rowPosition}"]`);
+    const row = courtSlot.querySelector(`.court-row[data-row-type="${rowPos}"]`);
     if (!row) return;
     
     // Clear the placeholder if it exists
@@ -727,10 +731,10 @@ class Board {
       }
       
       // 既存のカードの位置が変更された場合
-      const oldCourtNumber = existingCard.match.courtNumber;
-      const oldRowPosition = existingCard.match.rowPosition;
-      const newCourtNumber = match.courtNumber;
-      const newRowPosition = match.rowPosition;
+      const oldCourtNumber = existingCard.match.courtNumber != null ? parseInt(existingCard.match.courtNumber) : null;
+      const oldRowPosition = existingCard.match.rowPosition ? String(existingCard.match.rowPosition) : '';
+      const newCourtNumber = match.courtNumber != null ? parseInt(match.courtNumber) : null;
+      const newRowPosition = match.rowPosition ? String(match.rowPosition) : '';
       
       // 既存のカードを現在の位置から削除
       existingCard.element.remove();
@@ -832,7 +836,9 @@ class Board {
   getMatchesInCourt(courtNumber) {
     const matches = [];
     this.matchCards.forEach((matchCard, matchId) => {
-      if (matchCard.match.courtNumber === courtNumber) {
+      const a = matchCard.match && matchCard.match.courtNumber != null ? parseInt(matchCard.match.courtNumber) : null;
+      const b = courtNumber != null ? parseInt(courtNumber) : null;
+      if (a != null && b != null && a === b) {
         matches.push(matchCard.match);
       }
     });

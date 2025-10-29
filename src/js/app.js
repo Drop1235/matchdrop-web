@@ -34,22 +34,22 @@ document.addEventListener('DOMContentLoaded', () => {
   try {
     const tid = params.get('tid');
     const tname = params.get('tname');
-    if (tid && tname) {
+    if (tid) {
       console.log('[OP ingest-app] query params detected', { tid, tname });
       const raw = localStorage.getItem('tournaments');
       const list = raw ? JSON.parse(raw) : [];
       let nextList = Array.isArray(list) ? list.slice() : [];
       const idx = nextList.findIndex(t => t && t.id === tid);
       if (idx === -1) {
-        nextList.push({ id: tid, name: tname });
+        nextList.push({ id: tid, name: tname || tid });
       } else {
-        nextList[idx] = { id: tid, name: tname };
+        nextList[idx] = { id: tid, name: tname || nextList[idx].name || tid };
       }
       localStorage.setItem('tournaments', JSON.stringify(nextList));
       localStorage.setItem('currentTournamentId', tid);
       console.log('[OP ingest-app] tournaments updated', nextList);
     } else {
-      console.log('[OP ingest-app] no tid/tname in URL');
+      console.log('[OP ingest-app] no tid in URL');
     }
   } catch (e) {
     console.warn('[OP ingest-app] failed to ingest tid/tname', e);
