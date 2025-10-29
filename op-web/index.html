@@ -259,6 +259,25 @@
           const matches = ds.data.matches;
           console.log('[OP] pullLatest matches len=', matches.length, 'saveKey=', key);
           localStorage.setItem(key, JSON.stringify(matches));
+
+          // Apply shared settings (courtCount, courtNames) if present
+          const settings = ds.data.settings || {};
+          if (settings && typeof settings.courtCount === 'number') {
+            try {
+              const cc = parseInt(settings.courtCount, 10);
+              if (Number.isFinite(cc) && cc > 0) {
+                // Save both per-tournament and legacy keys for compatibility
+                localStorage.setItem('courtCount_' + tid, String(cc));
+                localStorage.setItem('courtCount', String(cc));
+              }
+            } catch {}
+          }
+          if (settings && settings.courtNames && typeof settings.courtNames === 'object') {
+            try {
+              localStorage.setItem('courtNames', JSON.stringify(settings.courtNames));
+            } catch {}
+          }
+
           const nowIso = new Date().toISOString();
           localStorage.setItem('lastSyncTime', nowIso);
           if (label) label.textContent = '最終更新: ' + new Date(nowIso).toLocaleString('ja-JP');
@@ -301,7 +320,13 @@
         matches = await window.db.getAllMatches();
       }
       const tid = getTournamentId();
-      await upsertDataset(tid, 'matches', { matches });
+      // Collect board settings to share across devices
+      const board = window.boardInstance || window.board;
+      const settings = {
+        courtCount: board && typeof board.numberOfCourts === 'number' ? board.numberOfCourts : undefined,
+        courtNames: board && board.courtNames ? board.courtNames : undefined,
+      };
+      await upsertDataset(tid, 'matches', { matches, settings });
       document.getElementById('last-sync-label').textContent = '最終更新: ' + new Date().toLocaleString('ja-JP');
       alert('クラウドに保存しました');
     }
@@ -365,6 +390,13 @@
       await ensureTables();
       updateAdminUI();
       await pullMeta();
+
+      // Viewer mode: auto fetch latest cloud data on load so devices see the same state
+      try {
+        if (!isAdmin()) {
+          await pullLatest();
+        }
+      } catch (e) { console.warn('auto pull on load failed', e); }
 
       // 初期化時に最終更新時刻を localStorage から反映
       try {
