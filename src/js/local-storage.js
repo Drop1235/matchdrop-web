@@ -37,6 +37,12 @@ class MemoryMatchDatabase {
     return Promise.reject(new Error('Match not found'));
   }
 
+  // 1件取得（Board.updateCourtGrid から参照される）
+  getMatch(id) {
+    const m = this.matches.find(x => String(x.id) === String(id));
+    return m ? Promise.resolve({ ...m }) : Promise.reject(new Error('Match not found'));
+  }
+
   deleteMatch(id) {
     // Normalize both sides to string to avoid type mismatches (e.g., '12' vs 12)
     const targetId = String(id);
@@ -52,6 +58,25 @@ class MemoryMatchDatabase {
       }
     } catch (_) { /* ignore */ }
     saveMatchData(this.matches); // 削除・保存
+    return Promise.resolve();
+  }
+
+  // 全削除（Board.deleteAllMatches から呼ばれる想定）
+  deleteAllMatches() {
+    try {
+      // 既存IDを tombstone に追加（端末間同期での復活防止のため）
+      const allIds = this.matches.map(m => String(m.id));
+      if (typeof window.getDeletedIdsKey === 'function') {
+        const key = window.getDeletedIdsKey();
+        const raw = localStorage.getItem(key);
+        const arr = raw ? JSON.parse(raw) : [];
+        const set = new Set([...arr, ...allIds]);
+        localStorage.setItem(key, JSON.stringify(Array.from(set)));
+      }
+    } catch (_) { /* ignore */ }
+    this.matches = [];
+    saveMatchData(this.matches); // 空配列を保存
+    // IDカウンタはそのまま維持（新規作成時に重複しない）
     return Promise.resolve();
   }
 

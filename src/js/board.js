@@ -887,7 +887,12 @@ class Board {
         // データベース削除は UI 操作が落ち着いた後のアイドルタイムで実行
         const deleteDb = () => {
           if (window.db) {
-            window.db.deleteAllMatches().catch(err => console.warn('Failed to delete all matches from database:', err));
+            window.db.deleteAllMatches()
+              .then(() => {
+                // クラウドにも空状態を保存（管理者モードのみ有効）。これにより更新で復活しない。
+                try { if (typeof window.pushNow === 'function') { window.pushNow(); } } catch (e) { console.warn('Failed to push after clear', e); }
+              })
+              .catch(err => console.warn('Failed to delete all matches from database:', err));
           }
         };
         if (window.requestIdleCallback) {
