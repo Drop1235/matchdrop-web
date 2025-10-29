@@ -62,18 +62,22 @@ class MemoryMatchDatabase {
   }
 
   // 全削除（Board.deleteAllMatches から呼ばれる想定）
-  deleteAllMatches() {
-    try {
-      // 既存IDを tombstone に追加（端末間同期での復活防止のため）
-      const allIds = this.matches.map(m => String(m.id));
-      if (typeof window.getDeletedIdsKey === 'function') {
-        const key = window.getDeletedIdsKey();
-        const raw = localStorage.getItem(key);
-        const arr = raw ? JSON.parse(raw) : [];
-        const set = new Set([...arr, ...allIds]);
-        localStorage.setItem(key, JSON.stringify(Array.from(set)));
-      }
-    } catch (_) { /* ignore */ }
+  // options.skipTombstone === true の場合、トゥームストーン更新をスキップ（同期置換用途）
+  deleteAllMatches(options = {}) {
+    const skipTombstone = !!options.skipTombstone;
+    if (!skipTombstone) {
+      try {
+        // 既存IDを tombstone に追加（端末間同期での復活防止のため）
+        const allIds = this.matches.map(m => String(m.id));
+        if (typeof window.getDeletedIdsKey === 'function') {
+          const key = window.getDeletedIdsKey();
+          const raw = localStorage.getItem(key);
+          const arr = raw ? JSON.parse(raw) : [];
+          const set = new Set([...arr, ...allIds]);
+          localStorage.setItem(key, JSON.stringify(Array.from(set)));
+        }
+      } catch (_) { /* ignore */ }
+    }
     this.matches = [];
     saveMatchData(this.matches); // 空配列を保存
     // IDカウンタはそのまま維持（新規作成時に重複しない）

@@ -430,6 +430,23 @@
       }
       const tid = getTournamentId();
       console.log('[OP] pushNow tid=', tid, 'matches.len=', matches?.length || 0);
+      // Safety: avoid pushing empty if local actually has data
+      if (!matches || matches.length === 0) {
+        try {
+          const key = (typeof window.getMatchDataKey === 'function') ? window.getMatchDataKey() : 'tennisTournamentMatches_' + tid;
+          const raw = localStorage.getItem(key);
+          const arr = raw ? JSON.parse(raw) : [];
+          if (Array.isArray(arr) && arr.length > 0) {
+            console.warn('[OP] in-memory empty; using localStorage dataset for push:', arr.length);
+            matches = arr;
+          }
+        } catch {}
+      }
+      // If still empty but DOM has cards, abort to prevent wiping cloud
+      if ((!matches || matches.length === 0) && document.querySelector('.match-card')) {
+        showToast('保存を中止しました（検出: 画面にはカードがあるのにデータが空）');
+        return;
+      }
       // Collect board settings to share across devices
       const board = window.boardInstance || window.board;
       const settings = {
