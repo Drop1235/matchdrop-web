@@ -41,6 +41,12 @@
       try {
         if (!data || data.length === 0) {
           const currentId = localStorage.getItem('currentTournamentId') || 'default';
+          // If this tournament was just created, do NOT migrate legacy data
+          const justCreated = localStorage.getItem('justCreatedTournament');
+          if (justCreated === currentId) {
+            try { localStorage.removeItem('justCreatedTournament'); } catch {}
+            return [];
+          }
           const migratedFlag = 'migratedMatches_' + currentId;
           const alreadyMigrated = localStorage.getItem(migratedFlag) === '1';
           const legacyRaw = localStorage.getItem('tennisTournamentMatches');

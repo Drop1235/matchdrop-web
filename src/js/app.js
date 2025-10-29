@@ -230,6 +230,7 @@ document.addEventListener('DOMContentLoaded', () => {
       tournaments.push({ id, name });
       saveTournaments(tournaments);
       setCurrentTournamentId(id);
+      try { localStorage.setItem('justCreatedTournament', id); } catch {}
       syncUrlTid(id);
       updateTournamentSelect();
       closeTournamentModal();
