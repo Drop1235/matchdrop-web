@@ -477,9 +477,9 @@
       try {
         const sp = new URLSearchParams(location.search);
         const hasTid = !!sp.get('tid');
-        const hasVersionBust = !!sp.get('_v');
         const alreadyPulled = sessionStorage.getItem('op_auto_pulled_once') === '1';
-        if (!alreadyPulled && (hasTid || !isAdmin()) && !hasVersionBust) {
+        // Always allow auto-pull for viewer or when tid specified, regardless of _v
+        if (!alreadyPulled && (hasTid || !isAdmin())) {
           await pullLatest();
         }
       } catch (e) { console.warn('auto pull on load failed', e); }
