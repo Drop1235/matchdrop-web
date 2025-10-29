@@ -146,6 +146,19 @@ document.addEventListener('DOMContentLoaded', () => {
     setCurrentTournamentId(defaultId);
   }
 
+  // URLのtidクエリを現在の大会IDに同期
+  function syncUrlTid(tid) {
+    try {
+      if (!tid) return;
+      const url = new URL(window.location.href);
+      if (url.searchParams.get('tid') !== tid) {
+        url.searchParams.set('tid', tid);
+        // 履歴を汚さない
+        window.history.replaceState(null, '', url.toString());
+      }
+    } catch (_) { /* ignore */ }
+  }
+
   // 必要なDOM要素参照を先に取得（nullガード付きで運用）
   const tournamentSelect = document.getElementById('tournament-select');
   const addTournamentBtn = document.getElementById('add-tournament-btn');
@@ -166,6 +179,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (t.id === currentId) opt.selected = true;
       tournamentSelect.appendChild(opt);
     });
+    // 反映後にURLを同期
+    syncUrlTid(currentId);
   }
   updateTournamentSelect();
 
@@ -215,6 +230,7 @@ document.addEventListener('DOMContentLoaded', () => {
       tournaments.push({ id, name });
       saveTournaments(tournaments);
       setCurrentTournamentId(id);
+      syncUrlTid(id);
       updateTournamentSelect();
       closeTournamentModal();
       window.location.reload();
@@ -231,6 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (tournamentSelect) {
     tournamentSelect.addEventListener('change', (e) => {
       setCurrentTournamentId(e.target.value);
+      syncUrlTid(e.target.value);
       window.location.reload(); // 大会切り替え時に全リロード（後で最適化可）
     });
   }
@@ -275,6 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 新しいカレントIDを決定
     const nextId = newTournaments[0]?.id;
     setCurrentTournamentId(nextId);
+    syncUrlTid(nextId);
     updateTournamentSelect();
     window.location.reload();
   });
