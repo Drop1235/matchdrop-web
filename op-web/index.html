@@ -342,7 +342,7 @@
               const currLen = Array.isArray(current) ? current.length : 0;
               if ((currLen !== matches.length) || JSON.stringify(current) !== JSON.stringify(matches)) {
                 if (typeof window.db.deleteAllMatches === 'function') {
-                  await window.db.deleteAllMatches();
+                  await window.db.deleteAllMatches({ skipTombstone: true });
                 }
                 // Re-add
                 if (typeof window.db.addMatch === 'function') {
@@ -351,6 +351,12 @@
               }
             }
           } catch (e) { console.warn('sync in-memory after pull failed', e); }
+
+          // Cloud is source of truth now: clear tombstones for this tournament so future reloads don't filter pulled IDs
+          try {
+            const delKey = (typeof window.getDeletedIdsKey === 'function') ? window.getDeletedIdsKey() : ('deletedMatchIds_' + tid);
+            localStorage.removeItem(delKey);
+          } catch {}
 
           // Apply shared settings (courtCount, courtNames) if present
           const settings = ds.data.settings || {};
