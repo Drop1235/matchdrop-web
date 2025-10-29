@@ -587,6 +587,8 @@ document.addEventListener('DOMContentLoaded', () => {
       
       const playerA = document.getElementById('player-a').value.trim();
       const playerB = document.getElementById('player-b').value.trim();
+      const categoryEl = document.getElementById('category-input');
+      const category = categoryEl ? categoryEl.value.trim() : '';
       const courtNumber = document.getElementById('court-select').value;
       const position = document.getElementById('position-select').value;
       const gameFormat = document.getElementById('game-format-select').value;
@@ -594,13 +596,14 @@ document.addEventListener('DOMContentLoaded', () => {
       // Save the selected game format for next time
       localStorage.setItem('preferredGameFormat', gameFormat);
 
-      console.log('[APP] Form data:', { playerA, playerB, courtNumber, position, gameFormat });
+      console.log('[APP] Form data:', { playerA, playerB, courtNumber, position, gameFormat, category });
       
       try {
         // Create new match object
         const newMatch = {
           playerA,
           playerB,
+          category,
           gameFormat, // Add selected game format
           // 予定開始時刻は設定しない
           status: position ? 

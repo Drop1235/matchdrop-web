@@ -4,20 +4,18 @@
 // MatchDrop用：試合データ（matchData）のlocalStorage保存・読み込みユーティリティ
 // 標準的な配列形式のmatchDataを想定
 
-  // --- 変更: 大会ごとにローカルストレージキーを分離 --------------------------
+  // 単一環境: ローカルストレージキーは固定
   /**
-   * 現在の大会IDに応じたローカルストレージキーを取得する。
+   * 試合データのローカルストレージキー（固定）
    * @returns {string}
    */
   function getMatchDataKey() {
-    const currentId = localStorage.getItem('currentTournamentId') || 'default';
-    return 'tennisTournamentMatches_' + currentId;
+    return 'tennisTournamentMatches';
   }
 
-  // Tombstone list for deleted matches (per tournament)
+  // Tombstone list（削除済みID）のキー（固定）
   function getDeletedIdsKey() {
-    const currentId = localStorage.getItem('currentTournamentId') || 'default';
-    return 'deletedMatchIds_' + currentId;
+    return 'deletedMatchIds';
   }
 
 /**
@@ -65,15 +63,13 @@
  */
   function saveMatchData(data) {
     const MATCH_DATA_KEY = getMatchDataKey();
-  try {
-    const currentTournamentId = localStorage.getItem('currentTournamentId');
-    const storageKey = `tennisTournamentMatches_${currentTournamentId}`;
-    localStorage.setItem(storageKey, JSON.stringify(data));
-  } catch (e) {
-    // 保存失敗時もエラーは出さない
-    console.warn('matchDataの保存に失敗:', e);
+    try {
+      localStorage.setItem(MATCH_DATA_KEY, JSON.stringify(data));
+    } catch (e) {
+      // 保存失敗時もエラーは出さない
+      console.warn('matchDataの保存に失敗:', e);
+    }
   }
-}
 
 /**
  * matchDataの自動保存をセットアップ
