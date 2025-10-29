@@ -264,6 +264,9 @@
 
     async function pullLatest() {
       try {
+        // Guard: avoid concurrent or repeated pulls during this session
+        if (sessionStorage.getItem('op_pulling') === '1') return;
+        sessionStorage.setItem('op_pulling', '1');
         const tid = getTournamentId();
         console.log('[OP] pullLatest clicked. tid=', tid);
         const ds = await getDataset(tid, 'matches');
@@ -295,6 +298,8 @@
           const nowIso = new Date().toISOString();
           localStorage.setItem('lastSyncTime', nowIso);
           if (label) label.textContent = '最終更新: ' + new Date(nowIso).toLocaleString('ja-JP');
+          // Mark that we have pulled once in this session to prevent re-auto-pull loop after reload
+          try { sessionStorage.setItem('op_auto_pulled_once', '1'); } catch {}
           // Cache-busting reload so that app.js reinitializes with the newly written localStorage
           try {
             const u = new URL(location.href);
@@ -315,6 +320,9 @@
         const label = document.getElementById('last-sync-label');
         if (label) label.textContent = '最終更新: エラー';
         alert('更新に失敗しました: ' + (err?.message || err));
+      } finally {
+        // Release guard
+        try { sessionStorage.setItem('op_pulling', '0'); } catch {}
       }
     }
 
@@ -417,7 +425,9 @@
       try {
         const sp = new URLSearchParams(location.search);
         const hasTid = !!sp.get('tid');
-        if (hasTid || !isAdmin()) {
+        const hasVersionBust = !!sp.get('_v');
+        const alreadyPulled = sessionStorage.getItem('op_auto_pulled_once') === '1';
+        if (!alreadyPulled && (hasTid || !isAdmin()) && !hasVersionBust) {
           await pullLatest();
         }
       } catch (e) { console.warn('auto pull on load failed', e); }
@@ -431,12 +441,14 @@
         }
       } catch {}
 
-      // Fallback: if local matches are empty, try pulling once more
+      // Fallback: if local matches are empty, try pulling once more (only once per session)
       try {
         const key = (typeof window.getMatchDataKey === 'function') ? window.getMatchDataKey() : 'tennisTournamentMatches';
         const raw = localStorage.getItem(key);
         const arr = raw ? JSON.parse(raw) : [];
-        if (!arr || (Array.isArray(arr) && arr.length === 0)) {
+        const alreadyPulled = sessionStorage.getItem('op_fallback_tried') === '1';
+        if (!alreadyPulled && (!arr || (Array.isArray(arr) && arr.length === 0))) {
+          sessionStorage.setItem('op_fallback_tried', '1');
           await pullLatest();
         }
       } catch (e) { console.warn('fallback pull failed', e); }
