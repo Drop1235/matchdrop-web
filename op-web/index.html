@@ -543,13 +543,16 @@
       updateAdminUI();
       await pullMeta();
 
-      // Auto fetch latest when tid is explicitly provided in URL, or when viewer mode
+      // Auto fetch latest
       try {
         const sp = new URLSearchParams(location.search);
         const hasTid = !!sp.get('tid');
         const alreadyPulled = sessionStorage.getItem('op_auto_pulled_once') === '1';
-        // Always allow auto-pull for viewer or when tid specified, regardless of _v
-        if (!alreadyPulled && (hasTid || !isAdmin())) {
+        // Viewer mode: always auto-pull on every load (ignore session flag)
+        if (!isAdmin()) {
+          await pullLatest();
+        } else if (hasTid && !alreadyPulled) {
+          // Admin mode: keep previous behavior to avoid loops
           await pullLatest();
         }
       } catch (e) { console.warn('auto pull on load failed', e); }
@@ -574,6 +577,15 @@
           await pullLatest();
         }
       } catch (e) { console.warn('fallback pull failed', e); }
+
+      // Mobile/app-switch: when page becomes visible again, auto-pull in viewer mode
+      try {
+        document.addEventListener('visibilitychange', async () => {
+          if (!document.hidden && !isAdmin()) {
+            await pullLatest();
+          }
+        });
+      } catch (e) { console.warn('visibilitychange bind failed', e); }
     });
   </script>
 </body>
