@@ -650,6 +650,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Reset form and close modal
         addMatchForm.reset();
         addMatchModal.style.display = 'none';
+        // Auto-push to cloud (admin only; debounced)
+        if (window.maybeAutoPush) window.maybeAutoPush('add-match');
         
       } catch (error) {
         console.error('Error adding match:', error);

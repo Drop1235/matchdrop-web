@@ -70,12 +70,24 @@ class MatchCard {
     this.match.tieBreakB = this.match.tieBreakB || '';
     
     this.element = this.createCardElement();
-    this.setupDragAndDrop();
+    if (!this.isReadOnly()) {
+      this.setupDragAndDrop();
+    }
     // These methods below will require significant updates later:
     this.updateScoreInputsInteractivity(); 
     this.updateWinStatus(); 
     this.updateEndTimeDisplay();
     this.addDoubleClickToHistoryListener();
+  }
+
+  // 閲覧モード（非管理者）のときは編集不可
+  isReadOnly() {
+    try {
+      if (window.isAdmin && typeof window.isAdmin === 'function') {
+        return !window.isAdmin();
+      }
+    } catch (_) {}
+    return false;
   }
 
   _getNumberOfSets() {
@@ -126,7 +138,7 @@ class MatchCard {
     const card = document.createElement('div');
     card.className = 'match-card';
     card.id = `match-${this.match.id}`;
-    card.setAttribute('draggable', 'true');
+    card.setAttribute('draggable', this.isReadOnly() ? 'false' : 'true');
     card.dataset.matchId = this.match.id;
 
     // カード上部（メモ・リーグ名・時間・削除ボタン）
@@ -140,8 +152,10 @@ class MatchCard {
     memoInput.placeholder = 'メモ';
     memoInput.value = this.match.memo || '';
     memoInput.addEventListener('change', (e) => {
+      if (this.isReadOnly()) { e.target.value = this.match.memo || ''; return; }
       this.updateMatchData({ memo: e.target.value });
     });
+    if (this.isReadOnly()) memoInput.disabled = true;
     headerDiv.appendChild(memoInput);
 
     // 削除ボタン (×) - ヘッダーの最後に追加
@@ -150,9 +164,11 @@ class MatchCard {
     deleteButton.textContent = '×';
     deleteButton.title = 'この試合を削除'; // ツールチップ
     deleteButton.addEventListener('click', (e) => {
+      if (this.isReadOnly()) { e.preventDefault(); return; }
       e.stopPropagation(); // カード全体のドラッグイベント等に影響しないように
       this.handleDeleteMatch();
     });
+    if (this.isReadOnly()) deleteButton.style.display = 'none';
 
     // 編集ボタン（モバイル用トリガー）
     const editButton = document.createElement('span');
@@ -162,6 +178,7 @@ class MatchCard {
     editButton.style.marginLeft = '8px';
     editButton.style.cursor = 'pointer';
     editButton.addEventListener('click', (e) => {
+      if (this.isReadOnly()) { e.preventDefault(); return; }
       e.stopPropagation();
       this.openQuickEditPanel({
         anchor: card,
@@ -171,6 +188,7 @@ class MatchCard {
         playerBInput,
       });
     });
+    if (this.isReadOnly()) editButton.style.display = 'none';
 
     // --- 試合形式・時間（右側に寄せる） ---
     // ラッパーdivでまとめて右寄せ
@@ -245,6 +263,7 @@ class MatchCard {
       endTimeInput.value = `${hours}:${minutes}`;
     }
     endTimeInput.addEventListener('change', (e) => {
+      if (this.isReadOnly()) { e.preventDefault(); e.target.value = this.match.actualEndTime ? e.target.value : ''; return; }
       if (e.target.value) {
         // 現在の日付を取得し、時間だけ変更
         const now = new Date();
@@ -256,6 +275,7 @@ class MatchCard {
       }
       this.checkLeagueWinCondition();
     });
+    if (this.isReadOnly()) endTimeInput.disabled = true;
     
     rightWrap.appendChild(endTimeInput);
 
@@ -286,8 +306,10 @@ class MatchCard {
     playerAInput.dataset.player = 'A'; // Add data-player attribute
     playerAInput.value = this.match.playerA;
     playerAInput.addEventListener('change', (e) => {
+      if (this.isReadOnly()) { e.target.value = this.match.playerA || ''; return; }
       this.updateMatchData({ playerA: e.target.value });
     });
+    if (this.isReadOnly()) playerAInput.disabled = true;
     
     // プレイヤー名の入力欄をそのまま追加
     playerADiv.appendChild(playerAInput);
@@ -335,6 +357,7 @@ class MatchCard {
         setScoreInput.value = this.match.setScores?.A[i] || '';
         
         setScoreInput.addEventListener('change', (e) => {
+          if (this.isReadOnly()) { e.target.value = this.match.setScores?.A[i] || ''; return; }
           // セットスコアを更新
           if (!this.match.setScores) {
             this.match.setScores = { A: [0, 0, 0], B: [0, 0, 0] };
@@ -379,7 +402,7 @@ class MatchCard {
         this.tiebreakWrappers[i] = tbWrapper;
         this.tiebreakInputs[i] = tbInput;
         this.tiebreakDivsA[i] = { wrapper: tbWrapper, input: tbInput };
-        tbInput.addEventListener('change',(e)=>{const v=e.target.value; const sc=v===''?null:parseInt(v,10); if(!this.match.tieBreakA) this.match.tieBreakA=[]; this.match.tieBreakA[i]=sc; this.updateMatchData({tieBreakA:this.match.tieBreakA});});
+        tbInput.addEventListener('change',(e)=>{ if (this.isReadOnly()) { e.target.value = this.match.tieBreakA?.[i] ?? ''; return; } const v=e.target.value; const sc=v===''?null:parseInt(v,10); if(!this.match.tieBreakA) this.match.tieBreakA=[]; this.match.tieBreakA[i]=sc; this.updateMatchData({tieBreakA:this.match.tieBreakA});});
       }
 
       // --- タイブレーク入力欄（A） ---
@@ -406,7 +429,7 @@ class MatchCard {
       const tbCloseParenA = document.createElement('span'); tbCloseParenA.textContent=')'; tbCloseParenA.style.fontSize='0.8em';
       tiebreakDivA.appendChild(tbOpenParenA); tiebreakDivA.appendChild(tiebreakInputA); tiebreakDivA.appendChild(tbCloseParenA);
 
-      tiebreakInputA.addEventListener('change',(e)=>{ const v=e.target.value; const sc=v===''?null:parseInt(v,10); this.match.tieBreakA=sc; this.updateMatchData({tieBreakA:this.match.tieBreakA}); });
+      tiebreakInputA.addEventListener('change',(e)=>{ if (this.isReadOnly()) { e.target.value = this.match.tieBreakA ?? ''; return; } const v=e.target.value; const sc=v===''?null:parseInt(v,10); this.match.tieBreakA=sc; this.updateMatchData({tieBreakA:this.match.tieBreakA}); });
       tiebreakInputA.addEventListener('click',(e)=>e.stopPropagation());
 
       // scoreContainerAへ追加
@@ -435,12 +458,14 @@ class MatchCard {
       this.scoreAInput = scoreAInput; // Assign to instance property
       
       scoreAInput.addEventListener('change', (e) => {
+        if (this.isReadOnly()) { e.target.value = (this.match.scoreA ?? '') === '' ? '' : this.match.scoreA; return; }
         this.match.scoreA = parseInt(e.target.value) || 0;
         this.updateMatchData({ scoreA: this.match.scoreA });
         this.updateDynamicElements();
         console.log('[DEBUG] scoreA changed:', this.match.scoreA, 'gameFormat:', this.match.gameFormat);
         this.checkLeagueWinCondition();
       });
+      if (this.isReadOnly()) scoreAInput.disabled = true;
       
       scoreAInput.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -492,6 +517,7 @@ class MatchCard {
       
       // タイブレーク入力のイベントリスナーを設定
       tiebreakInputA.addEventListener('change', (e) => {
+        if (this.isReadOnly()) { e.target.value = this.match.tieBreakA ?? ''; return; }
         const value = e.target.value;
         const score = value === '' ? null : parseInt(value, 10);
         this.match.tieBreakA = score;
@@ -499,6 +525,7 @@ class MatchCard {
       });
       
       tiebreakInputA.addEventListener('click', (e) => {
+        if (this.isReadOnly()) return;
         e.stopPropagation();
         // フォーカスを確実に当てる
         e.target.focus();
@@ -586,8 +613,10 @@ class MatchCard {
     playerBInput.dataset.player = 'B';
     playerBInput.value = this.match.playerB;
     playerBInput.addEventListener('change', (e) => {
+      if (this.isReadOnly()) { e.target.value = this.match.playerB || ''; return; }
       this.updateMatchData({ playerB: e.target.value });
     });
+    if (this.isReadOnly()) playerBInput.disabled = true;
     playerBDiv.appendChild(playerBInput);
 
     // スコア入力B
@@ -653,11 +682,13 @@ class MatchCard {
       this.scoreBInput = scoreBInput;
 
       scoreBInput.addEventListener('change', (e) => {
+        if (this.isReadOnly()) { e.target.value = (this.match.scoreB ?? '') === '' ? '' : this.match.scoreB; return; }
         this.match.scoreB = parseInt(e.target.value) || 0;
         this.updateMatchData({ scoreB: this.match.scoreB });
         this.updateDynamicElements();
         this.checkLeagueWinCondition();
       });
+      if (this.isReadOnly()) scoreBInput.disabled = true;
       scoreBInput.addEventListener('click', (e) => e.stopPropagation());
 
       scoreContainerB = document.createElement('div');
@@ -696,6 +727,7 @@ class MatchCard {
     playerBDiv.appendChild(scoreWinContainerB);
 
     winBDiv.addEventListener('click', (e) => {
+      if (this.isReadOnly()) { e.preventDefault(); return; }
       e.stopPropagation();
       if (this.match.winner === 'B') {
         this.match.winner = null;
@@ -716,6 +748,7 @@ class MatchCard {
 
     // Winボタンのクリックイベントを追加
     winADiv.addEventListener('click', (e) => {
+      if (this.isReadOnly()) { e.preventDefault(); return; }
       e.stopPropagation(); // ダブルクリックイベントの伝播を防止
       
       // 現在の勝者をクリア
@@ -876,6 +909,8 @@ openQuickEditPanel(ctx) {
     }
     this._checkAndToggleTiebreakUI();
     document.body.removeChild(panel);
+    // Auto-push to cloud (admin only; debounced)
+    if (window.maybeAutoPush) window.maybeAutoPush('quick-edit');
   });
 
   const btnCancel = document.createElement('button');

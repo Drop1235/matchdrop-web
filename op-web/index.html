@@ -466,9 +466,22 @@
       showToast('クラウドに保存しました');
     }
 
-    // expose for external callers (e.g., board.js)
+    // expose for external callers (e.g., board.js, app.js, matchCard.js)
     window.pushNow = pushNow;
     window.pullLatest = pullLatest;
+    window.isAdmin = isAdmin;
+
+    // Debounced auto push helper (admin only)
+    let autoPushTimer = null;
+    window.maybeAutoPush = function(reason = 'auto') {
+      try {
+        if (!isAdmin()) return; // viewer mode: do nothing silently
+        if (autoPushTimer) clearTimeout(autoPushTimer);
+        autoPushTimer = setTimeout(() => {
+          pushNow().catch(e => console.warn('auto push failed', e));
+        }, 1200);
+      } catch (e) { console.warn('maybeAutoPush error', e); }
+    };
 
     // 管理者切替
     function toggleAdmin() {
