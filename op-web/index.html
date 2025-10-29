@@ -165,7 +165,7 @@
         const sp = new URLSearchParams(location.search);
         const tid = sp.get('tid');
         const tname = sp.get('tname');
-        if (tid && tname) {
+        if (tid) {
           console.log('[OP ingest] query params detected', { tid, tname });
           const raw = localStorage.getItem('tournaments');
           const list = raw ? JSON.parse(raw) : [];
@@ -175,17 +175,17 @@
           let nextList = Array.isArray(list) ? list.slice() : [];
           const idx = nextList.findIndex(t => t && t.id === tid);
           if (idx === -1) {
-            // 新規追加
-            nextList.push({ id: tid, name: tname });
+            // 新規追加（名称が無ければIDを暫定名にする）
+            nextList.push({ id: tid, name: tname || tid });
           } else {
             // 既存の名称を最新に更新（ブランケット側の大会名を優先）
-            nextList[idx] = { id: tid, name: tname };
+            nextList[idx] = { id: tid, name: tname || nextList[idx].name || tid };
           }
           localStorage.setItem('tournaments', JSON.stringify(nextList));
           localStorage.setItem('currentTournamentId', tid);
           console.log('[OP ingest] tournaments updated', nextList);
         } else {
-          console.log('[OP ingest] no tid/tname in URL');
+          console.log('[OP ingest] no tid in URL');
         }
       } catch (e) {
         console.warn('[OP] failed to ingest tid/tname from URL', e);
@@ -295,13 +295,21 @@
           const nowIso = new Date().toISOString();
           localStorage.setItem('lastSyncTime', nowIso);
           if (label) label.textContent = '最終更新: ' + new Date(nowIso).toLocaleString('ja-JP');
-          location.reload();
+          // Cache-busting reload so that app.js reinitializes with the newly written localStorage
+          try {
+            const u = new URL(location.href);
+            u.searchParams.set('_v', Date.now());
+            location.replace(u.toString());
+          } catch {
+            location.reload();
+          }
           return;
         }
         console.warn('[OP] pullLatest: no dataset for this tournament or empty');
         const nowIso = new Date().toISOString();
         localStorage.setItem('lastSyncTime', nowIso);
         if (label) label.textContent = '最終更新: ' + new Date(nowIso).toLocaleString('ja-JP');
+        alert('クラウドにデータが見つかりませんでした。\n大会ID: ' + tid + '\nPC側で「管理」→「保存」を実行し、共有URLの tid が一致しているか確認してください。');
       } catch (err) {
         console.error('[OP] pullLatest error', err);
         const label = document.getElementById('last-sync-label');
@@ -405,9 +413,11 @@
       updateAdminUI();
       await pullMeta();
 
-      // Viewer mode: auto fetch latest cloud data on load so devices see the same state
+      // Auto fetch latest when tid is explicitly provided in URL, or when viewer mode
       try {
-        if (!isAdmin()) {
+        const sp = new URLSearchParams(location.search);
+        const hasTid = !!sp.get('tid');
+        if (hasTid || !isAdmin()) {
           await pullLatest();
         }
       } catch (e) { console.warn('auto pull on load failed', e); }
@@ -420,6 +430,16 @@
           label.textContent = '最終更新: ' + new Date(ts).toLocaleString('ja-JP');
         }
       } catch {}
+
+      // Fallback: if local matches are empty, try pulling once more
+      try {
+        const key = (typeof window.getMatchDataKey === 'function') ? window.getMatchDataKey() : 'tennisTournamentMatches';
+        const raw = localStorage.getItem(key);
+        const arr = raw ? JSON.parse(raw) : [];
+        if (!arr || (Array.isArray(arr) && arr.length === 0)) {
+          await pullLatest();
+        }
+      } catch (e) { console.warn('fallback pull failed', e); }
     });
   </script>
 </body>
