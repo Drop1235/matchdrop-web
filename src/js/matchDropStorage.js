@@ -37,6 +37,26 @@
         }
       }
 
+      // Migration: if no per-tournament data yet, but legacy single-key exists, migrate it
+      try {
+        if (!data || data.length === 0) {
+          const currentId = localStorage.getItem('currentTournamentId') || 'default';
+          const migratedFlag = 'migratedMatches_' + currentId;
+          const alreadyMigrated = localStorage.getItem(migratedFlag) === '1';
+          const legacyRaw = localStorage.getItem('tennisTournamentMatches');
+          if (!alreadyMigrated && legacyRaw) {
+            const legacyArr = JSON.parse(legacyRaw);
+            if (Array.isArray(legacyArr) && legacyArr.length > 0) {
+              try {
+                localStorage.setItem(MATCH_DATA_KEY, JSON.stringify(legacyArr));
+                localStorage.setItem(migratedFlag, '1');
+                data = legacyArr.slice();
+              } catch {}
+            }
+          }
+        }
+      } catch {}
+
       // Filter out tombstoned (deleted) matches by ID (string-compare)
       try {
         const delKey = getDeletedIdsKey();
