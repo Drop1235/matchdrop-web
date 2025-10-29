@@ -9,15 +9,37 @@
    * 現在の大会IDに応じたローカルストレージキーを取得する。
    * @returns {string}
    */
+  function resolveActiveTournamentId() {
+    // 1) URL ?tid has highest priority (works on initial load before app.js runs)
+    try {
+      const sp = new URLSearchParams(window.location.search || '');
+      const urlTid = sp.get('tid');
+      if (urlTid) return urlTid;
+    } catch (_) {}
+    // 2) Explicit currentTournamentId in localStorage
+    const lsTid = localStorage.getItem('currentTournamentId');
+    if (lsTid) return lsTid;
+    // 3) If there is exactly one tournament in list, adopt it
+    try {
+      const list = JSON.parse(localStorage.getItem('tournaments') || '[]');
+      if (Array.isArray(list) && list.length === 1 && list[0] && list[0].id) {
+        localStorage.setItem('currentTournamentId', list[0].id);
+        return list[0].id;
+      }
+    } catch (_) {}
+    // 4) Fallback
+    return 'default';
+  }
+
   function getMatchDataKey() {
-    const currentId = localStorage.getItem('currentTournamentId') || 'default';
-    return 'tennisTournamentMatches_' + currentId;
+    const tid = resolveActiveTournamentId();
+    return 'tennisTournamentMatches_' + tid;
   }
 
   // Tombstone list for deleted matches (per tournament)
   function getDeletedIdsKey() {
-    const currentId = localStorage.getItem('currentTournamentId') || 'default';
-    return 'deletedMatchIds_' + currentId;
+    const tid = resolveActiveTournamentId();
+    return 'deletedMatchIds_' + tid;
   }
 
 /**
