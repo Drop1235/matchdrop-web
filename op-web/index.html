@@ -275,6 +275,21 @@
           const key = (typeof window.getMatchDataKey === 'function') ? window.getMatchDataKey() : 'tennisTournamentMatches_' + tid;
           const matches = ds.data.matches;
           console.log('[OP] pullLatest matches len=', matches.length, 'saveKey=', key);
+          // If incoming is empty but local has data, do NOT overwrite to avoid losing unsaved work
+          try {
+            const localRaw = localStorage.getItem(key);
+            const localArr = localRaw ? JSON.parse(localRaw) : [];
+            const localLen = Array.isArray(localArr) ? localArr.length : 0;
+            if ((matches?.length || 0) === 0 && localLen > 0) {
+              console.warn('[OP] Cloud dataset empty; preserving local data.');
+              const nowIso = new Date().toISOString();
+              localStorage.setItem('lastSyncTime', nowIso);
+              if (label) label.textContent = '最終更新: ' + new Date(nowIso).toLocaleString('ja-JP');
+              alert('クラウド側が空のため、ローカルの対戦カードを保持しました。\n管理モードで「保存」を押すとクラウドへ反映されます。');
+              return;
+            }
+          } catch {}
+
           localStorage.setItem(key, JSON.stringify(matches));
 
           // Apply shared settings (courtCount, courtNames) if present
