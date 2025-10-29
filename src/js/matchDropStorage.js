@@ -4,18 +4,20 @@
 // MatchDrop用：試合データ（matchData）のlocalStorage保存・読み込みユーティリティ
 // 標準的な配列形式のmatchDataを想定
 
-  // 単一環境: ローカルストレージキーは固定
+  // 大会ごとにローカルストレージキーを分離
   /**
-   * 試合データのローカルストレージキー（固定）
+   * 現在の大会IDに応じたローカルストレージキーを取得する。
    * @returns {string}
    */
   function getMatchDataKey() {
-    return 'tennisTournamentMatches';
+    const currentId = localStorage.getItem('currentTournamentId') || 'default';
+    return 'tennisTournamentMatches_' + currentId;
   }
 
-  // Tombstone list（削除済みID）のキー（固定）
+  // Tombstone list for deleted matches (per tournament)
   function getDeletedIdsKey() {
-    return 'deletedMatchIds';
+    const currentId = localStorage.getItem('currentTournamentId') || 'default';
+    return 'deletedMatchIds_' + currentId;
   }
 
 /**
