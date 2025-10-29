@@ -47,6 +47,20 @@
             try { localStorage.removeItem('justCreatedTournament'); } catch {}
             return [];
           }
+          // If URL explicitly specifies tid, do NOT migrate from legacy
+          try {
+            const sp = new URLSearchParams(window.location.search || '');
+            if (sp.get('tid')) {
+              return data || [];
+            }
+          } catch (_) {}
+          // If tournaments list exists (multi-tournament mode), avoid legacy migration
+          try {
+            const list = JSON.parse(localStorage.getItem('tournaments') || '[]');
+            if (Array.isArray(list) && list.length > 0) {
+              return data || [];
+            }
+          } catch (_) {}
           const migratedFlag = 'migratedMatches_' + currentId;
           const alreadyMigrated = localStorage.getItem(migratedFlag) === '1';
           const legacyRaw = localStorage.getItem('tennisTournamentMatches');
