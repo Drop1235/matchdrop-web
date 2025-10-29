@@ -317,12 +317,16 @@
             const localRaw = localStorage.getItem(key);
             const localArr = localRaw ? JSON.parse(localRaw) : [];
             const localLen = Array.isArray(localArr) ? localArr.length : 0;
-            if ((matches?.length || 0) === 0 && localLen > 0) {
+            // Also consider in-memory db or current DOM state
+            let memLen = 0;
+            try { if (window.db && typeof window.db.getAllMatches === 'function') { const m = await window.db.getAllMatches(); memLen = Array.isArray(m) ? m.length : 0; } } catch {}
+            const domHasCards = !!document.querySelector('.match-card');
+            if ((matches?.length || 0) === 0 && (localLen > 0 || memLen > 0 || domHasCards)) {
               console.warn('[OP] Cloud dataset empty; preserving local data.');
               const nowIso = new Date().toISOString();
               localStorage.setItem('lastSyncTime', nowIso);
               if (label) label.textContent = '最終更新: ' + new Date(nowIso).toLocaleString('ja-JP');
-              alert('クラウド側が空のため、ローカルの対戦カードを保持しました。\n管理モードで「保存」を押すとクラウドへ反映されます。');
+              try { if (typeof showToast === 'function') showToast('クラウドが空だったためローカルを保持しました'); } catch {}
               return;
             }
           } catch {}
