@@ -324,6 +324,8 @@ class MatchCard {
     });
     if (this.isReadOnly()) endTimeInput.disabled = true;
     
+    // keep reference for updateEndTimeDisplay
+    this.endTimeInput = endTimeInput;
     rightWrap.appendChild(endTimeInput);
 
     // rightWrapをheaderDivに追加（削除ボタンの前に）
@@ -1234,17 +1236,41 @@ updateScoreInputsInteractivity() {
   // 古いタイブレーク入力欄のコードは削除済み
 }
 
-        if (endTimeInput.value !== '') {
-          endTimeInput.value = '';
-        }
-      }
-    }
+// 実終了時刻のUI反映
+updateEndTimeDisplay() {
+  try {
+    const input = this.endTimeInput;
+    if (!input) return;
+    const ts = this.match && this.match.actualEndTime;
+    if (!ts) { input.value = ''; return; }
+    const d = new Date(ts);
+    if (isNaN(d.getTime())) { input.value = ''; return; }
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    input.value = `${hh}:${mm}`;
+  } catch {}
+}
+
+// 勝敗確定後に外部連携を行うためのタイマースケジューラ（簡易版）
+_scheduleDecidedWebhook() {
+  try {
+    // 既にスケジュール済みなら何もしない
+    if (this._decidedWebhookTimer) return;
+    // 現状は安全のため何も送らない（将来ここで window.sendResultToLeague を呼ぶ）
+    this._decidedWebhookTimer = null;
+  } catch {}
+}
+
+// 履歴へ移動するダブルクリック用の追加リスナ（createCardElement 内で実装済みのため互換用に空）
+addDoubleClickToHistoryListener() {
+  // 互換目的のプレースホルダ
+  return;
 }
 
 async updateMatchData(updatedData) {
-    // ---- Synchronize scoreA/scoreB ↔ setScores before saving ----
-    // Merge incoming changes first so we work with latest values
-    this.match = { ...this.match, ...updatedData };
+  // ---- Synchronize scoreA/scoreB ↔ setScores before saving ----
+  // Merge incoming changes first so we work with latest values
+  this.match = { ...this.match, ...updatedData };
 
     const numSets = this._getNumberOfSets();
 

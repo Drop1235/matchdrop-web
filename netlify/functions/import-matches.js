@@ -91,7 +91,9 @@ exports.handler = async (event) => {
     }
 
     const out = await res.json();
-    return { statusCode: 200, body: JSON.stringify({ ok: true, updated: out?.length || 1 }) };
+    // Return extra debug info to help verify correct tournament mapping
+    const updatedCount = out?.length || 1;
+    return { statusCode: 200, body: JSON.stringify({ ok: true, updated: updatedCount, tid: tournamentId, newMatches: Array.isArray(pairs) ? pairs.length : 0 }) };
   } catch (e) {
     return { statusCode: 500, body: JSON.stringify({ ok: false, error: String(e) }) };
   }
