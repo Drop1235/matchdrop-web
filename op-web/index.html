@@ -36,6 +36,7 @@
       <button id="history-view-btn">試合履歴</button>
       <label for="tournament-select" style="margin-left: 16px;">大会:</label>
       <select id="tournament-select" style="min-width: 150px;"></select>
+      <button id="copy-tid-btn" title="大会IDをコピー" style="margin-left:4px; font-size:0.9em; line-height:1; padding:4px 6px;">📋</button>
       <button id="add-tournament-btn" style="background-color: #2196f3; color: #fff;">新規大会</button>
       <button id="delete-tournament-btn" title="大会を削除" style="background: none; border: none; cursor: pointer; font-size: 1.3em; color: #f44336; padding: 0 8px;">🗑️</button>
 
@@ -45,7 +46,7 @@
         <button id="toggle-admin-btn" title="管理者/閲覧者 切替">👤 管理</button>
         <span id="last-sync-label" style="font-size:0.85em;color:#666;">最終更新: -</span>
       </div>
-      <span id="tournament-id-label" style="margin-left:8px;font-size:0.85em;color:#666;"></span>
+      
     </nav>
   </header>
   <!-- Viewer-mode admin re-entry button (shown only when body has viewer-mode) -->
@@ -307,7 +308,8 @@
         sessionStorage.setItem('op_pulling', '1');
         const tid = getTournamentId();
         console.log('[OP] pullLatest clicked. tid=', tid);
-        try { const tlabel = document.getElementById('tournament-id-label'); if (tlabel) tlabel.textContent = '大会ID: ' + tid; } catch {}
+        // keep copy button tooltip reflecting current tid
+        try { const copyBtn = document.getElementById('copy-tid-btn'); if (copyBtn) copyBtn.title = '大会IDをコピー: ' + tid; } catch {}
         const ds = await getDataset(tid, 'matches');
         const label = document.getElementById('last-sync-label');
         if (ds && ds.data && Array.isArray(ds.data.matches)) {
@@ -545,11 +547,25 @@
       updateAdminUI();
       await pullMeta();
 
-      // ヘッダーに大会IDを表示
+      // コピーアイコンに現在のtidを反映しクリックでコピー
       try {
-        const tid = getTournamentId();
-        const tlabel = document.getElementById('tournament-id-label');
-        if (tlabel && tid) tlabel.textContent = '大会ID: ' + tid;
+        const copyBtn = document.getElementById('copy-tid-btn');
+        const updateBtn = () => {
+          const tid = getTournamentId();
+          if (copyBtn) copyBtn.title = '大会IDをコピー: ' + tid;
+        };
+        updateBtn();
+        if (copyBtn) {
+          copyBtn.addEventListener('click', async () => {
+            try {
+              const tid = getTournamentId();
+              await navigator.clipboard.writeText(tid);
+              if (typeof showToast === 'function') showToast('大会IDをコピーしました');
+            } catch (e) {
+              alert('コピーに失敗しました');
+            }
+          });
+        }
       } catch {}
 
       // Auto fetch latest
