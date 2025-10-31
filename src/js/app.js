@@ -737,6 +737,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const winningSide = updatedMatch.winner === 'A' ? 1 : updatedMatch.winner === 'B' ? 2 : null;
           const payload = {
             tournamentName: tname,
+            tournamentId: currentTid || '',
             leagueName: updatedMatch.category || '',
             externalId: updatedMatch.externalId || updatedMatch.matchExternalId || updatedMatch.id,
             side1Name: updatedMatch.playerA,

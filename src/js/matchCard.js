@@ -9,6 +9,7 @@ class MatchCard {
     this.initialLeft = 0;
     this.initialTop = 0;
     this.dragThreshold = 5; // px
+    this._decidedWebhookTimer = null;
     
     const numSets = this._getNumberOfSets(); // 試合形式に応じたセット数
 
@@ -77,6 +78,7 @@ class MatchCard {
     this.updateScoreInputsInteractivity(); 
     this.updateWinStatus(); 
     this.updateEndTimeDisplay();
+    this._scheduleDecidedWebhook();
     this.addDoubleClickToHistoryListener();
   }
 
@@ -265,6 +267,7 @@ class MatchCard {
             const winningSide = updatedMatch.winner === 'A' ? 1 : updatedMatch.winner === 'B' ? 2 : null;
             const payload = {
               tournamentName: tname,
+              tournamentId: currentTid || '',
               leagueName: updatedMatch.category || '',
               externalId: updatedMatch.externalId || updatedMatch.matchExternalId || updatedMatch.id,
               side1Name: updatedMatch.playerA,
@@ -784,6 +787,8 @@ class MatchCard {
       this.updateMatchData({ winner: this.match.winner, actualEndTime: this.match.actualEndTime });
       this.updateWinStatus();
       this.updateEndTimeDisplay();
+      // schedule DECIDED webhook if winner is set
+      this._scheduleDecidedWebhook();
     });
 
     // playersContainer にB行を追加
@@ -815,6 +820,8 @@ class MatchCard {
       });
       this.updateWinStatus();
       this.updateEndTimeDisplay();
+      // schedule DECIDED webhook if winner is set
+      this._scheduleDecidedWebhook();
     }); // ← クリックハンドラをここで閉じる
       
 
@@ -1227,17 +1234,6 @@ updateScoreInputsInteractivity() {
   // 古いタイブレーク入力欄のコードは削除済み
 }
 
-updateEndTimeDisplay() {
-    const endTimeInput = this.element.querySelector('.match-end-time-input');
-    if (endTimeInput) {
-      if (this.match.actualEndTime) {
-        const endTime = new Date(this.match.actualEndTime);
-        const hours = endTime.getHours().toString().padStart(2, '0');
-        const minutes = endTime.getMinutes().toString().padStart(2, '0');
-        if (endTimeInput.value !== `${hours}:${minutes}`) {
-          endTimeInput.value = `${hours}:${minutes}`;
-        }
-      } else {
         if (endTimeInput.value !== '') {
           endTimeInput.value = '';
         }

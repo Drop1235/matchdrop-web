@@ -19,7 +19,8 @@ exports.handler = async (event) => {
     const now = Date.now();
 
     const body = JSON.stringify({
-      dedupeKey: `${input.externalId || input.matchExternalId || 'noext'}-${now}`,
+      // Use stable dedupe key to allow idempotent processing on league side
+      dedupeKey: `${input.tournamentId || input.tid || 'notid'}:${input.externalId || input.matchExternalId || 'noext'}`,
       tournament: { name: input.tournamentName || input.tournament?.name || '' },
       league: { name: input.leagueName || input.league?.name || '' },
       matchExternalId: input.externalId || input.matchExternalId,
