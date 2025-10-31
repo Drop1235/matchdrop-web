@@ -45,6 +45,7 @@
         <button id="toggle-admin-btn" title="管理者/閲覧者 切替">👤 管理</button>
         <span id="last-sync-label" style="font-size:0.85em;color:#666;">最終更新: -</span>
       </div>
+      <span id="tournament-id-label" style="margin-left:8px;font-size:0.85em;color:#666;"></span>
     </nav>
   </header>
   <!-- Viewer-mode admin re-entry button (shown only when body has viewer-mode) -->
@@ -306,6 +307,7 @@
         sessionStorage.setItem('op_pulling', '1');
         const tid = getTournamentId();
         console.log('[OP] pullLatest clicked. tid=', tid);
+        try { const tlabel = document.getElementById('tournament-id-label'); if (tlabel) tlabel.textContent = '大会ID: ' + tid; } catch {}
         const ds = await getDataset(tid, 'matches');
         const label = document.getElementById('last-sync-label');
         if (ds && ds.data && Array.isArray(ds.data.matches)) {
@@ -542,6 +544,13 @@
       await ensureTables();
       updateAdminUI();
       await pullMeta();
+
+      // ヘッダーに大会IDを表示
+      try {
+        const tid = getTournamentId();
+        const tlabel = document.getElementById('tournament-id-label');
+        if (tlabel && tid) tlabel.textContent = '大会ID: ' + tid;
+      } catch {}
 
       // Auto fetch latest
       try {

@@ -9,26 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  // Inject runtime version banner as fallback (for build verification)
-  try {
-    const versionText = 'v-op-2025-10-22-ingest-name-1';
-    let tag = document.getElementById('op-version-tag');
-    if (!tag) {
-      const brand = document.querySelector('.app-brand');
-      if (brand) {
-        tag = document.createElement('span');
-        tag.id = 'op-version-tag';
-        tag.style.marginLeft = '8px';
-        tag.style.color = '#777';
-        tag.style.fontSize = '12px';
-        brand.appendChild(tag);
-      }
-    }
-    if (tag) tag.textContent = versionText;
-    console.log('[APP] boot version:', versionText);
-  } catch (e) {
-    console.warn('[APP] failed to inject version tag', e);
-  }
+  // Version banner injection removed per UI request
 
   // OP ingestion fallback: Ensure tid/tname from URL are reflected in localStorage before using tournaments
   try {
