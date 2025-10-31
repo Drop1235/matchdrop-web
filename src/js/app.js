@@ -714,6 +714,48 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         document.dispatchEvent(updateEvent);
         
+        // Fire league webhook (non-blocking)
+        try {
+          const tournamentsRaw = localStorage.getItem('tournaments') || '[]';
+          const tournaments = JSON.parse(tournamentsRaw);
+          const currentTid = localStorage.getItem('currentTournamentId');
+          const tname = (tournaments.find(t => t && t.id === currentTid) || {}).name || currentTid || '';
+          const toSets = (m) => {
+            const sets = [];
+            const A = m?.setScores?.A || [];
+            const B = m?.setScores?.B || [];
+            const n = Math.max(A.length || 0, B.length || 0);
+            for (let i = 0; i < n; i++) {
+              const a = A[i];
+              const b = B[i];
+              if (a != null || b != null) {
+                sets.push({ seq: i + 1, side1_games: a ?? null, side2_games: b ?? null });
+              }
+            }
+            return sets.length ? sets : undefined;
+          };
+          const winningSide = updatedMatch.winner === 'A' ? 1 : updatedMatch.winner === 'B' ? 2 : null;
+          const payload = {
+            tournamentName: tname,
+            leagueName: updatedMatch.category || '',
+            externalId: updatedMatch.externalId || updatedMatch.matchExternalId || updatedMatch.id,
+            side1Name: updatedMatch.playerA,
+            side2Name: updatedMatch.playerB,
+            status: 'COMPLETED',
+            winningSide,
+            sets: toSets(updatedMatch),
+          };
+          if (typeof window.sendResultToLeague === 'function') {
+            window.sendResultToLeague(payload).then((res) => {
+              if (res && res.ignored) {
+                console.warn('[ignored]', payload.leagueName, payload.side1Name, 'vs', payload.side2Name, '(ext=' + payload.externalId + '):', res.reason);
+              }
+            }).catch(e => console.warn('league webhook failed', e));
+          }
+        } catch (e) {
+          console.warn('league webhook skipped', e);
+        }
+        
       } catch (error) {
         console.error('Error completing match:', error);
       }
