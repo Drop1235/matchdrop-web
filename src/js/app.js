@@ -631,8 +631,16 @@ document.addEventListener('DOMContentLoaded', () => {
         // Reset form and close modal
         addMatchForm.reset();
         addMatchModal.style.display = 'none';
-        // Auto-push to cloud (admin only; debounced)
-        if (window.maybeAutoPush) window.maybeAutoPush('add-match');
+        // Immediately push to cloud to persist new card (admin only)
+        try {
+          if (typeof window.pushNow === 'function') {
+            await window.pushNow(); // shows toast on success
+          } else if (typeof window.maybeAutoPush === 'function') {
+            window.maybeAutoPush('add-match');
+          }
+        } catch (e) {
+          console.warn('[APP] auto-push after add failed', e);
+        }
         
       } catch (error) {
         console.error('Error adding match:', error);
