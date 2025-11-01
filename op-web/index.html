@@ -531,8 +531,8 @@
     window.pullMeta = pullMeta;
     window.pushNow = pushNow;
 
-    // ボタンイベント（DOM構築後に確実にバインド）
-    document.addEventListener('DOMContentLoaded', async () => {
+    // 初期化関数（DOMContentLoaded 後に追加された場合でも即時バインドできるように）
+    async function initCloudControls() {
       const pullBtn = document.getElementById('cloud-pull-btn');
       const pushBtn = document.getElementById('cloud-push-btn');
       const toggleBtn = document.getElementById('toggle-admin-btn');
@@ -612,7 +612,15 @@
           }
         });
       } catch (e) { console.warn('visibilitychange bind failed', e); }
-    });
+    }
+
+    // DOM 準備状態に応じて初期化を実行
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initCloudControls, { once: true });
+    } else {
+      // 既に読み込み済みなら即時実行
+      initCloudControls();
+    }
   </script>
 </body>
 </html>
