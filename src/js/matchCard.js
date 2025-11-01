@@ -51,9 +51,9 @@ class MatchCard {
     this.gameFormatOptions = {
       '5game': '5G',
       '4game1set': '4G1set',
+      '4game1set_ntb': '4G1set NoTB',
       '6game1set': '6G1set',
       '6game1set_ntb': '6G1set NoTB',
-      '4game1set_ntb': '4G1set NoTB',
       '8game1set': '8G-Pro',
       '4game2set': '4G2set+10MTB',
       '6game2set': '6G2set+10MTB',
