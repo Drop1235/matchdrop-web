@@ -334,24 +334,58 @@
               try { if (typeof showToast === 'function') showToast('クラウドが空だったためローカルを保持しました'); } catch {}
               return;
             }
+            // If cloud has fewer records than local/memory, regard cloud as older and keep local
+            if ((matches?.length || 0) < Math.max(localLen, memLen)) {
+              console.warn('[OP] Cloud appears older (fewer records). Preserving local. cloud=', matches?.length || 0, 'local=', localLen, 'mem=', memLen);
+              const nowIso = new Date().toISOString();
+              localStorage.setItem('lastSyncTime', nowIso);
+              if (label) label.textContent = '最終更新: ' + new Date(nowIso).toLocaleString('ja-JP');
+              try { if (typeof showToast === 'function') showToast('ローカルを保持しました（クラウドが古い可能性）'); } catch {}
+              return;
+            }
           } catch {}
 
-          // If cloud has data, write to local and in-memory DB
+          // If cloud has data, MERGE with local in-memory/localStorage to preserve local-only cards
           const prevRaw = localStorage.getItem(key) || '[]';
           const prevArr = (()=>{ try { return JSON.parse(prevRaw) } catch { return [] } })();
-          localStorage.setItem(key, JSON.stringify(matches));
+          // Build id map for cloud
+          const cloudById = new Map();
+          const cloudArr = Array.isArray(ds.data.matches) ? ds.data.matches : [];
+          for (const m of cloudArr) { if (m && m.id != null) cloudById.set(String(m.id), m); }
+          // Gather local sources
+          let memArr = [];
+          try { if (window.db && typeof window.db.getAllMatches === 'function') { memArr = await window.db.getAllMatches(); } } catch {}
+          const localCandidates = [ ...(Array.isArray(prevArr)?prevArr:[]), ...(Array.isArray(memArr)?memArr:[]) ];
+          // Deleted tombstones (do not resurrect)
+          let deletedSet = new Set();
+          try {
+            const delKey = (typeof window.getDeletedIdsKey === 'function') ? window.getDeletedIdsKey() : ('deletedMatchIds_' + tid);
+            const raw = localStorage.getItem(delKey);
+            const arr = raw ? JSON.parse(raw) : [];
+            deletedSet = new Set(Array.isArray(arr) ? arr.map(x => String(x)) : []);
+          } catch {}
+          // Start with cloud and append any local-only by id
+          const merged = [...cloudArr];
+          const mergedIds = new Set([...cloudById.keys()]);
+          for (const lm of localCandidates) {
+            if (!lm || lm.id == null) continue;
+            const idStr = String(lm.id);
+            if (deletedSet.has(idStr)) continue; // honor deletions
+            if (!mergedIds.has(idStr)) { merged.push(lm); mergedIds.add(idStr); }
+          }
+          // Persist merged dataset
+          localStorage.setItem(key, JSON.stringify(merged));
           try {
             if (window.db && typeof window.db.getAllMatches === 'function') {
-              // Replace in-memory dataset if it differs
+              // Replace in-memory dataset if it differs from merged
               const current = await window.db.getAllMatches();
               const currLen = Array.isArray(current) ? current.length : 0;
-              if ((currLen !== matches.length) || JSON.stringify(current) !== JSON.stringify(matches)) {
+              if ((currLen !== merged.length) || JSON.stringify(current) !== JSON.stringify(merged)) {
                 if (typeof window.db.deleteAllMatches === 'function') {
                   await window.db.deleteAllMatches({ skipTombstone: true });
                 }
-                // Re-add
                 if (typeof window.db.addMatch === 'function') {
-                  for (const m of matches) { await window.db.addMatch(m); }
+                  for (const m of merged) { await window.db.addMatch(m); }
                 }
               }
             }
@@ -385,8 +419,8 @@
           localStorage.setItem('lastSyncTime', nowIso);
           if (label) label.textContent = '最終更新: ' + new Date(nowIso).toLocaleString('ja-JP');
           // Only reload if dataset actually changed and is non-empty to avoid clearing transiently
-          const changed = JSON.stringify(prevArr) !== JSON.stringify(matches);
-          if (changed && matches.length > 0) {
+          const changed = JSON.stringify(prevArr) !== JSON.stringify(merged);
+          if (changed && merged.length > 0) {
             // Mark that we have pulled once in this session to prevent re-auto-pull loop after reload
             try { sessionStorage.setItem('op_auto_pulled_once', '1'); } catch {}
             // Cache-busting reload so that app.js reinitializes with the newly written localStorage
@@ -465,10 +499,18 @@
         courtNames: board && board.courtNames ? board.courtNames : undefined,
       };
       const rev = Date.now();
-      await upsertDataset(tid, 'matches', { matches, settings, _rev: rev });
-      try { localStorage.setItem('lastPushRev_' + tid, String(rev)); } catch {}
-      document.getElementById('last-sync-label').textContent = '最終更新: ' + new Date().toLocaleString('ja-JP');
-      showToast('クラウドに保存しました');
+      try {
+        await upsertDataset(tid, 'matches', { matches, settings, _rev: rev });
+        try { localStorage.setItem('lastPushRev_' + tid, String(rev)); } catch {}
+        const lbl = document.getElementById('last-sync-label');
+        if (lbl) lbl.textContent = '最終更新: ' + new Date().toLocaleString('ja-JP');
+        showToast('クラウドに保存しました');
+      } catch (e) {
+        console.warn('[OP] pushNow failed', e);
+        // Show non-blocking toast (avoid losing local state)
+        try { showToast('クラウド保存に失敗しました（権限/ネットワーク）'); } catch {}
+        // Keep local state; do not throw further
+      }
     }
 
     // expose for external callers (e.g., board.js, app.js, matchCard.js)
