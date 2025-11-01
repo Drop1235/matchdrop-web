@@ -62,6 +62,24 @@ exports.handler = async (event) => {
     const rows = await res.json();
     const row = Array.isArray(rows) && rows[0] ? rows[0] : null;
 
+    // helper: normalize incoming game format labels/codes to internal keys
+    const normalizeFormat = (v) => {
+      if (!v) return undefined;
+      const s = String(v).trim();
+      const low = s.toLowerCase().replace(/\s+/g, '');
+      // explicit NoTB forms first
+      if (low === '6g1setnotb' || low === '6g1set_notb' || low === '6game1set_ntb' || low === '6game1setnotb') return '6game1set_ntb';
+      if (low === '4g1setnotb' || low === '4g1set_notb' || low === '4game1set_ntb' || low === '4game1setnotb') return '4game1set_ntb';
+      // common one-set labels
+      if (low === '6g1set' || low === '6game1set') return '6game1set';
+      if (low === '4g1set' || low === '4game1set') return '4game1set';
+      if (low === '5g' || low === '5game') return '5game';
+      if (low === '8g-pro' || low === '8gpro' || low === '8game1set') return '8game1set';
+      // passthrough known internal strings
+      if (/^(?:4game|6game)\dset(?:_ntb)?$/.test(low)) return low.replace('6game', '6game').replace('4game', '4game');
+      return undefined; // unknown
+    };
+
     // 2) build matches payload to merge
     const nowIso = new Date().toISOString();
     const newMatches = pairs.map((p) => ({
@@ -71,6 +89,7 @@ exports.handler = async (event) => {
       leagueName,
       playerA: p.side1Name,
       playerB: p.side2Name,
+      gameFormat: normalizeFormat(p.gameFormat || p.gameFormatLabel || p.format) || undefined,
       status: 'PENDING',
       createdAt: nowIso,
       updatedAt: nowIso,
@@ -80,7 +99,13 @@ exports.handler = async (event) => {
     if (row && row.data && Array.isArray(row.data.matches)) {
       // merge by externalId
       const map = new Map(row.data.matches.map((m) => [m.externalId || m.id, m]));
-      for (const m of newMatches) map.set(m.externalId, { ...(map.get(m.externalId) || {}), ...m });
+      for (const m of newMatches) {
+        const cur = map.get(m.externalId) || {};
+        // only overwrite gameFormat if provided this time
+        const next = { ...cur, ...m };
+        if (!m.gameFormat && cur.gameFormat) next.gameFormat = cur.gameFormat;
+        map.set(m.externalId, next);
+      }
       data = { matches: Array.from(map.values()), leagueName, participants };
     } else {
       data = { matches: newMatches, leagueName, participants };
