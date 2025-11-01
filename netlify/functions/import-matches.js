@@ -2,6 +2,7 @@
 // Create/merge unassigned matches into Supabase datasets table used by OP export.
 
 const ALLOW_ORIGIN = 'https://matchdrop-web-league.netlify.app';
+const crypto = require('crypto');
 
 function json(body, statusCode = 200) {
   return {
@@ -82,33 +83,56 @@ exports.handler = async (event) => {
 
     // 2) build matches payload to merge
     const nowIso = new Date().toISOString();
-    const newMatches = pairs.map((p) => ({
-      id: p.externalId,
-      externalId: p.externalId,
-      category: leagueName,
-      leagueName,
-      playerA: p.side1Name,
-      playerB: p.side2Name,
-      gameFormat: normalizeFormat(p.gameFormat || p.gameFormatLabel || p.format) || undefined,
-      status: 'PENDING',
-      createdAt: nowIso,
-      updatedAt: nowIso,
-    }));
+    const newMatches = pairs.map((p) => {
+      const extId = p.externalId != null ? String(p.externalId) : undefined;
+      // Fallback unique key when externalId is missing
+      const fallbackKey = crypto
+        .createHash('sha1')
+        .update(`${leagueName}|${p.side1Name}|${p.side2Name}`)
+        .digest('hex')
+        .slice(0, 12);
+      // Use composite ID to avoid collisions across leagues
+      const compositeId = `${leagueName}::${extId ?? fallbackKey}`;
+      return {
+        id: compositeId,
+        externalId: extId,
+        category: leagueName,
+        leagueName,
+        playerA: p.side1Name,
+        playerB: p.side2Name,
+        gameFormat: normalizeFormat(p.gameFormat || p.gameFormatLabel || p.format) || undefined,
+        status: 'PENDING',
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      };
+    });
 
     let data;
     if (row && row.data && Array.isArray(row.data.matches)) {
-      // merge by externalId
-      const map = new Map(row.data.matches.map((m) => [m.externalId || m.id, m]));
+      // merge by composite key: leagueName::externalId (fall back to id)
+      const keyOf = (m) => `${m.leagueName || ''}::${m.externalId != null ? m.externalId : m.id}`;
+      const map = new Map(row.data.matches.map((m) => [keyOf(m), m]));
       for (const m of newMatches) {
-        const cur = map.get(m.externalId) || {};
+        const k = keyOf(m);
+        const cur = map.get(k) || {};
         // only overwrite gameFormat if provided this time
         const next = { ...cur, ...m };
         if (!m.gameFormat && cur.gameFormat) next.gameFormat = cur.gameFormat;
-        map.set(m.externalId, next);
+        map.set(k, next);
       }
-      data = { matches: Array.from(map.values()), leagueName, participants };
+      // Preserve multi-league metadata
+      const prevLeagues = Array.isArray(row.data.leagues)
+        ? row.data.leagues.slice()
+        : (row.data.leagueName ? [row.data.leagueName] : []);
+      const leagues = Array.from(new Set([...prevLeagues, leagueName]));
+      const prevParticipantsByLeague = (row.data.participantsByLeague && typeof row.data.participantsByLeague === 'object')
+        ? row.data.participantsByLeague
+        : {};
+      const participantsByLeague = { ...prevParticipantsByLeague, [leagueName]: participants };
+      data = { matches: Array.from(map.values()), leagues, participantsByLeague };
     } else {
-      data = { matches: newMatches, leagueName, participants };
+      // first write for this tournament
+      data = { matches: newMatches, leagues: [leagueName], participantsByLeague: { [leagueName]: participants } };
     }
 
     if (row?.id) {

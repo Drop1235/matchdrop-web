@@ -345,12 +345,31 @@
             }
           } catch {}
 
-          // If cloud has data, MERGE with local in-memory/localStorage to preserve local-only cards
+          // If cloud has data, first normalize IDs to avoid cross-league collisions
+          const normalizeIds = (arr) => {
+            try {
+              return (Array.isArray(arr) ? arr : []).map(m => {
+                try {
+                  const ln = m?.leagueName || m?.category || '';
+                  const ext = (m?.externalId ?? m?.matchExternalId);
+                  if (ln && (ext !== undefined && ext !== null)) {
+                    const composite = `${ln}::${String(ext)}`;
+                    // Preserve original externalId for downstream systems
+                    const orig = (m.originalExternalId !== undefined) ? m.originalExternalId : (m.externalId ?? m.matchExternalId);
+                    return { ...m, id: (m.id && String(m.id) === composite) ? m.id : composite, originalExternalId: orig };
+                  }
+                } catch {}
+                return m;
+              });
+            } catch { return Array.isArray(arr) ? arr : []; }
+          };
+          const normalizedCloud = normalizeIds(matches);
+          // MERGE with local in-memory/localStorage to preserve local-only cards
           const prevRaw = localStorage.getItem(key) || '[]';
           const prevArr = (()=>{ try { return JSON.parse(prevRaw) } catch { return [] } })();
           // Build id map for cloud
           const cloudById = new Map();
-          const cloudArr = Array.isArray(ds.data.matches) ? ds.data.matches : [];
+          const cloudArr = Array.isArray(normalizedCloud) ? normalizedCloud : [];
           for (const m of cloudArr) { if (m && m.id != null) cloudById.set(String(m.id), m); }
           // Gather local sources
           let memArr = [];
@@ -507,8 +526,16 @@
         showToast('クラウドに保存しました');
       } catch (e) {
         console.warn('[OP] pushNow failed', e);
-        // Show non-blocking toast (avoid losing local state)
-        try { showToast('クラウド保存に失敗しました（権限/ネットワーク）'); } catch {}
+        // Show non-blocking toast with reason
+        const reason = (e && (e.message || e.error_description || e.code)) ? String(e.message || e.error_description || e.code) : '権限/ネットワーク';
+        try { showToast('クラウド保存に失敗しました（' + reason + '）'); } catch {}
+        // Additionally show alert with brief guidance once per session
+        try {
+          if (!sessionStorage.getItem('op_push_error_alerted')) {
+            sessionStorage.setItem('op_push_error_alerted', '1');
+            alert('クラウド保存に失敗しました。\n理由: ' + reason + '\n\n対処例:\n- 管理モードか確認（右上「管理」）\n- ネットワーク/HTTPS を確認\n- Supabase の datasets テーブルと RLS ポリシーを確認\n（anon ロールに対して insert/update 許可）');
+          }
+        } catch {}
         // Keep local state; do not throw further
       }
     }
