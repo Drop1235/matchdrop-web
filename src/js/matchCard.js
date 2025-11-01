@@ -31,7 +31,7 @@ class MatchCard {
     // scoreA / scoreB 文字列を整形して保持（setScores がある場合でも最新化）
     // ただし、5game形式の場合は既存のスコアが適切であれば再フォーマットしない
     const format = (this.match.gameFormat || '').toLowerCase();
-    const isSingleGame = format === '5game' || format === '4game1set' || format === '6game1set' || format === '6game1set_ntb' || format === '8game1set';
+    const isSingleGame = format === '5game' || format === '4game1set' || format === '4game1set_ntb' || format === '6game1set' || format === '6game1set_ntb' || format === '8game1set';
     
     if (isSingleGame && this.match.scoreA !== undefined && this.match.scoreA !== null && this.match.scoreA !== '') {
       // 5game等の単一ゲーム形式で既にスコアが設定されている場合は保持
@@ -1000,9 +1000,9 @@ openQuickEditPanel(ctx) {
 
   // タイブレーク入力欄の表示・非表示を制御
   _checkAndToggleTiebreakUI() {
-    // 6G1set NoTB は常にタイブレーク入力を非表示にする
+    // 4G/6G 1set NoTB は常にタイブレーク入力を非表示にする
     const format = (this.match.gameFormat || '').toLowerCase();
-    if (format === '6game1set_ntb') {
+    if (format === '6game1set_ntb' || format === '4game1set_ntb') {
       if (this.tiebreakWrappers && Array.isArray(this.tiebreakWrappers)) {
         this.tiebreakWrappers.forEach(w => w.style.display = 'none');
       }
@@ -1415,6 +1415,35 @@ shouldShowWin(player) {
 }
 
 async checkLeagueWinCondition() {
+    // 4G1set NoTB (タイブレークなし) の勝者判定
+    if (this.match.gameFormat === '4game1set_ntb') {
+      const scoreAEntered = this.match.scoreA !== null && this.match.scoreA !== undefined && this.match.scoreA !== '';
+      const scoreBEntered = this.match.scoreB !== null && this.match.scoreB !== undefined && this.match.scoreB !== '';
+      let newWinner = null;
+      let newStatus = this.match.status;
+      if (scoreAEntered && scoreBEntered) {
+        const scoreA = parseInt(this.match.scoreA, 10);
+        const scoreB = parseInt(this.match.scoreB, 10);
+        if ((scoreA === 4 || scoreB === 4) && Math.abs(scoreA - scoreB) >= 1 && scoreA <= 4 && scoreB <= 4) {
+          newWinner = scoreA > scoreB ? 'A' : 'B';
+          newStatus = 'Win';
+        }
+      }
+      // 変更があればDB・UI更新
+      if (this.match.winner !== newWinner || this.match.status !== newStatus) {
+        const updatePayload = { winner: newWinner, status: newStatus };
+        if (newWinner && !this.match.actualEndTime) {
+          updatePayload.actualEndTime = new Date().toISOString();
+        } else if (!newWinner) {
+          updatePayload.actualEndTime = null;
+        }
+        this.updateMatchData(updatePayload);
+        this.updateWinStatus();
+        this.updateEndTimeDisplay();
+      }
+      return; // NoTB 判定後は終了
+    }
+
     // 6G1set NoTB (タイブレークなし) の勝者判定
     if (this.match.gameFormat === '6game1set_ntb') {
       const scoreAEntered = this.match.scoreA !== null && this.match.scoreA !== undefined && this.match.scoreA !== '';
