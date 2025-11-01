@@ -46,8 +46,12 @@ class MemoryMatchDatabase {
   deleteMatch(id) {
     // Normalize both sides to string to avoid type mismatches (e.g., '12' vs 12)
     const targetId = String(id);
+    // Find externalId before removing
+    const target = this.matches.find(m => String(m.id) === targetId) || null;
+    const extId = target && (target.externalId || target.matchExternalId) ? String(target.externalId || target.matchExternalId) : null;
+    // Remove from in-memory list
     this.matches = this.matches.filter(m => String(m.id) !== targetId);
-    // Append to per-tournament tombstone list so external sync won't resurrect it
+    // Append to per-tournament tombstone lists so external syncや再読み込みで復活しない
     try {
       if (typeof window.getDeletedIdsKey === 'function') {
         const key = window.getDeletedIdsKey();
@@ -55,6 +59,15 @@ class MemoryMatchDatabase {
         const arr = raw ? JSON.parse(raw) : [];
         if (!arr.includes(targetId)) arr.push(targetId);
         localStorage.setItem(key, JSON.stringify(arr));
+      }
+    } catch (_) { /* ignore */ }
+    try {
+      if (extId && typeof window.getDeletedExternalIdsKey === 'function') {
+        const key2 = window.getDeletedExternalIdsKey();
+        const raw2 = localStorage.getItem(key2);
+        const arr2 = raw2 ? JSON.parse(raw2) : [];
+        if (!arr2.includes(extId)) arr2.push(extId);
+        localStorage.setItem(key2, JSON.stringify(arr2));
       }
     } catch (_) { /* ignore */ }
     saveMatchData(this.matches); // 削除・保存

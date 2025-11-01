@@ -42,6 +42,12 @@
     return 'deletedMatchIds_' + tid;
   }
 
+  // Tombstone list for deleted matches by externalId (per tournament)
+  function getDeletedExternalIdsKey() {
+    const tid = resolveActiveTournamentId();
+    return 'deletedExternalIds_' + tid;
+  }
+
 /**
  * localStorageからmatchData（配列）を読み込む
  * データ構造が不正な場合は空配列を返す
@@ -113,6 +119,20 @@
         // ignore filter errors
       }
 
+      // Also filter out tombstoned matches by externalId
+      try {
+        const delExtKey = getDeletedExternalIdsKey();
+        const delExtJson = localStorage.getItem(delExtKey);
+        const delExtSet = new Set(
+          delExtJson ? (JSON.parse(delExtJson) || []).map(x => String(x)) : []
+        );
+        if (delExtSet.size > 0) {
+          data = data.filter(m => !delExtSet.has(String(m && (m.externalId || m.matchExternalId))));
+        }
+      } catch (e) {
+        // ignore filter errors
+      }
+
       return data;
     } catch (e) {
       // 不正なデータの場合は何もしない
@@ -163,6 +183,7 @@
   // getMatchDataKey も必要に応じて公開
   global.getMatchDataKey = getMatchDataKey;
   global.getDeletedIdsKey = getDeletedIdsKey;
+  global.getDeletedExternalIdsKey = getDeletedExternalIdsKey;
   global.loadMatchData = loadMatchData;
   global.saveMatchData = saveMatchData;
   global.setupMatchDropStorageSync = setupMatchDropStorageSync;
