@@ -392,6 +392,22 @@
             if (deletedSet.has(idStr)) continue; // honor deletions
             if (!mergedIds.has(idStr)) { merged.push(lm); mergedIds.add(idStr); }
           }
+          // Final safety: if cloud is empty but we have any local source, do not overwrite/wipe
+          try {
+            const cloudCount = Array.isArray(cloudArr) ? cloudArr.length : 0;
+            if (cloudCount === 0) {
+              const localCount = Array.isArray(prevArr) ? prevArr.length : 0;
+              const memCount = Array.isArray(localCandidates) ? localCandidates.length : 0;
+              if (localCount > 0 || memCount > 0) {
+                console.warn('[OP] Abort overwrite: cloud empty while local exists (local=', localCount, 'mem=', memCount, ')');
+                const nowIso = new Date().toISOString();
+                localStorage.setItem('lastSyncTime', nowIso);
+                if (label) label.textContent = '最終更新: ' + new Date(nowIso).toLocaleString('ja-JP');
+                return;
+              }
+            }
+          } catch {}
+
           // Persist merged dataset
           localStorage.setItem(key, JSON.stringify(merged));
           try {
@@ -663,7 +679,8 @@
 
       // Fallback: if local matches are empty, try pulling once more (only once per session)
       try {
-        const key = (typeof window.getMatchDataKey === 'function') ? window.getMatchDataKey() : 'tennisTournamentMatches';
+        const tid = getTournamentId();
+        const key = (typeof window.getMatchDataKey === 'function') ? window.getMatchDataKey(tid) : ('tennisTournamentMatches_' + tid);
         const raw = localStorage.getItem(key);
         const arr = raw ? JSON.parse(raw) : [];
         const alreadyPulled = sessionStorage.getItem('op_fallback_tried') === '1';
