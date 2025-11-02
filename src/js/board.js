@@ -134,8 +134,9 @@ class Board {
       });
       
       // Get the match ID from the dragged card
-      const matchId = parseInt(e.dataTransfer.getData('text/plain'));
-      if (!matchId) return;
+      const matchIdRaw = e.dataTransfer.getData('text/plain');
+      if (!matchIdRaw) return;
+      const matchId = isNaN(Number(matchIdRaw)) ? String(matchIdRaw) : Number(matchIdRaw);
       
       // Get the target court row
       let targetRow = null;
@@ -159,7 +160,7 @@ class Board {
       try {
         // Get the match from the database
         const matches = await db.getAllMatches();
-        const match = matches.find(m => m.id === matchId);
+        const match = matches.find(m => String(m.id) === String(matchId));
         
         if (!match) {
           console.error('Match not found:', matchId);
@@ -670,8 +671,9 @@ class Board {
       unassignedArea.classList.remove('drag-over');
       
       // ドラッグされたカードのIDを取得
-      const matchId = parseInt(e.dataTransfer.getData('text/plain'));
-      if (!matchId) return;
+      const matchIdRaw = e.dataTransfer.getData('text/plain');
+      if (!matchIdRaw) return;
+      const matchId = isNaN(Number(matchIdRaw)) ? String(matchIdRaw) : Number(matchIdRaw);
       
       // ソースのコートと行を取得
       const sourceCourtNumber = parseInt(e.dataTransfer.getData('source-court')) || null;
@@ -680,7 +682,7 @@ class Board {
       try {
         // データベースから試合を取得
         const matches = await db.getAllMatches();
-        const match = matches.find(m => m.id === matchId);
+        const match = matches.find(m => String(m.id) === String(matchId));
         
         if (!match) {
           console.error('Match not found:', matchId);
