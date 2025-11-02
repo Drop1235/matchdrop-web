@@ -208,7 +208,7 @@
 
   <!-- クラウド連携 -->
   <script type="module">
-    import { SUPABASE_URL, SUPABASE_ANON_KEY } from './src/js/supabase-config.js?v=2025-10-23-ingest2';
+    import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../src/js/supabase-config.js?v=2025-10-23-ingest2';
 
     // Supabaseクライアント
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -227,14 +227,17 @@
     }
 
     async function getDataset(tournamentId, type) {
+      // Be robust to accidental duplicates: fetch the latest by updated_at
       const { data, error } = await supabase
         .from('datasets')
         .select('data, updated_at')
         .eq('tournament_id', tournamentId)
         .eq('type', type)
-        .maybeSingle();
-      if (error && error.code !== 'PGRST116') throw error;
-      return data || null;
+        .order('updated_at', { ascending: false })
+        .limit(1);
+      if (error) throw error;
+      if (Array.isArray(data) && data.length > 0) return data[0];
+      return null;
     }
 
     async function upsertDataset(tournamentId, type, payload) {
