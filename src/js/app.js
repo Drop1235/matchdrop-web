@@ -760,3 +760,46 @@ window.onerror = function(message, source, lineno, colno, error) {
   console.error('Global error:', { message, source, lineno, colno, error });
   return false;
 };
+
+window.buildLeagueMatchesArray = async function() {
+  if (window.db && typeof window.db.getAllMatches === 'function') {
+    try { return await window.db.getAllMatches(); } catch (_) { return []; }
+  }
+  return [];
+};
+
+window.sendToOPFromLeague = async function(tid, matches, settings = {}) {
+  if (!tid || typeof tid !== 'string') { alert('OP大会ID(tid)を入力してください'); return; }
+  if (!Array.isArray(matches) || matches.length === 0) { alert('送信対象の対戦カードが空です'); return; }
+  try {
+    const raw = localStorage.getItem('tournaments');
+    const list = raw ? JSON.parse(raw) : [];
+    const idx = Array.isArray(list) ? list.findIndex(t => t && t.id === tid) : -1;
+    if (idx === -1) list.push({ id: tid, name: settings.tname || tid });
+    else list[idx] = { id: tid, name: settings.tname || list[idx].name || tid };
+    localStorage.setItem('tournaments', JSON.stringify(list));
+    localStorage.setItem('currentTournamentId', tid);
+  } catch (_) {}
+  const res = await fetch('/.netlify/functions/op-upsert', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ tid, data: { matches, settings } }),
+  });
+  let json = {};
+  try { json = await res.json(); } catch (_) {}
+  if (!res.ok || !json.ok) { alert('OPへ送信失敗: HTTP ' + res.status + '\n' + JSON.stringify(json)); return; }
+  alert('OPへ送信しました（' + matches.length + '件）。OPで「更新」を押してください。');
+};
+
+(function(){
+  const btn = document.getElementById('send-to-op-btn');
+  if (!btn) return;
+  btn.addEventListener('click', async () => {
+    const tidEl = document.querySelector('#op-tid-input');
+    const nameEl = document.querySelector('#tname-input');
+    const tid = ((tidEl && tidEl.value) || localStorage.getItem('currentTournamentId') || '').trim();
+    const settings = { tname: (nameEl && nameEl.value ? nameEl.value.trim() : undefined) };
+    const matches = await window.buildLeagueMatchesArray();
+    await window.sendToOPFromLeague(tid, matches, settings);
+  });
+})();
