@@ -1,8 +1,9 @@
 // Board Component for managing the court grid
 class Board {
-  constructor(numberOfCourts = 12) {
+  constructor(numberOfCourts = 12, slotsPerCourt = 6) {
     console.log('[BOARD] Constructor called');
     this.numberOfCourts = numberOfCourts;
+    this.slotsPerCourt = slotsPerCourt; // 1コートあたりの枠数（第1〜第N試合）
     this.courtGrid = document.getElementById('court-grid');
     this.matchCards = new Map(); // Map to store match card instances by ID
     this.courtNames = {}; // Map to store custom court names
@@ -58,20 +59,13 @@ class Board {
       const courtRows = document.createElement('div');
       courtRows.className = 'court-rows';
       
-      // Create six rows for each court
-      const currentRow = this.createCourtRow('current', '現在の試合');
-      const nextRow = this.createCourtRow('next', '次の試合');
-      const next2Row = this.createCourtRow('next2', '次々の試合');
-      const next3Row = this.createCourtRow('next3', '4番目の試合');
-      const next4Row = this.createCourtRow('next4', '5番目の試合');
-      const next5Row = this.createCourtRow('next5', '6番目の試合');
-
-      courtRows.appendChild(currentRow);
-      courtRows.appendChild(nextRow);
-      courtRows.appendChild(next2Row);
-      courtRows.appendChild(next3Row);
-      courtRows.appendChild(next4Row);
-      courtRows.appendChild(next5Row);
+      // 枠数に応じて行を動的に生成（第1〜第N試合）
+      const rowKeys = this.getRowKeys();
+      rowKeys.forEach((key, idx) => {
+        const label = `第${idx + 1}試合`;
+        const row = this.createCourtRow(key, label);
+        courtRows.appendChild(row);
+      });
       
       courtSlot.appendChild(courtHeader);
       courtSlot.appendChild(courtRows);
@@ -167,7 +161,7 @@ class Board {
           return;
         }
         
-        // Update match status based on the target row
+        // Update match status based on the target row（動的対応）
         let newStatus = 'Unassigned';
         let actualStartTime = match.actualStartTime;
         let actualEndTime = match.actualEndTime;
@@ -177,16 +171,9 @@ class Board {
           if (match.status !== 'Current') {
             actualStartTime = new Date().toISOString();
           }
-        } else if (rowType === 'next') {
-          newStatus = 'Next';
-        } else if (rowType === 'next2') {
-          newStatus = 'Next2';
-        } else if (rowType === 'next3') {
-          newStatus = 'Next3';
-        } else if (rowType === 'next4') {
-          newStatus = 'Next4';
-        } else if (rowType === 'next5') {
-          newStatus = 'Next5';
+        } else if (rowType && rowType.startsWith('next')) {
+          const suffix = (rowType === 'next') ? '' : rowType.replace('next', '');
+          newStatus = 'Next' + suffix; // Next, Next2, ... Next19
         }
         
         // Check if moving to history (completed)
@@ -834,15 +821,35 @@ class Board {
         const hasCard = cardContainer && cardContainer.querySelector('.match-card');
         
         // カードがない場合は空き状態と判断
-        if (!hasCard && ['current', 'next', 'next2', 'next3', 'next4', 'next5'].includes(rowType)) {
+        if (!hasCard && this.getRowKeys().includes(rowType)) {
           // 空き状態なのでoccupiedPositionsには追加しない
-        } else if (hasCard && ['current', 'next', 'next2', 'next3', 'next4', 'next5'].includes(rowType)) {
+        } else if (hasCard && this.getRowKeys().includes(rowType)) {
           occupiedPositions.push(rowType);
         }
       });
     }
     
     return [...new Set(occupiedPositions)]; // Return unique positions
+  }
+
+  // 枠キー配列を取得（例: ['current','next','next2',...,'next19']）
+  getRowKeys() {
+    const keys = [];
+    const n = Math.max(1, Math.min(20, parseInt(this.slotsPerCourt || 6, 10)));
+    for (let i = 0; i < n; i++) {
+      if (i === 0) keys.push('current');
+      else if (i === 1) keys.push('next');
+      else keys.push('next' + i);
+    }
+    return keys;
+  }
+
+  // 枠数を更新して再描画
+  async setSlotsPerCourt(n) {
+    const v = Math.max(1, Math.min(20, parseInt(n, 10) || 6));
+    if (this.slotsPerCourt === v) return;
+    this.slotsPerCourt = v;
+    await this.updateCourtGrid();
   }
 
   // コートに配置されているマッチカードを取得

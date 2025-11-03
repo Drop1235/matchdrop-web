@@ -9,6 +9,23 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
+  // --- SlotsPerCourt persistence (大会別) ---
+  function _slotCountKey() {
+    const tid = getCurrentTournamentId() || 'default';
+    return 'slotCount_' + tid;
+  }
+  function loadSlotCount(defaultValue = 6) {
+    const v = localStorage.getItem(_slotCountKey());
+    const n = parseInt(v, 10);
+    if (Number.isFinite(n) && n > 0) return n;
+    // legacy fallback (optional): none -> return default
+    return defaultValue;
+  }
+  function storeSlotCount(n) {
+    const v = Math.max(1, Math.min(20, parseInt(n, 10) || 6));
+    localStorage.setItem(_slotCountKey(), String(v));
+  }
+
   // Version banner injection removed per UI request
 
   // OP ingestion fallback: Ensure tid/tname from URL are reflected in localStorage before using tournaments
@@ -283,6 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // コート数をロード（大会別に保存）
   const initialCourtCount = loadCourtCount(12);
+  const initialSlotCount = loadSlotCount(6);
   
   // Initialize components
   console.log('[APP] Creating Board instance.');
@@ -304,9 +322,18 @@ document.addEventListener('DOMContentLoaded', () => {
     applyCourtVisibilityLimit(initialCourtCount);
     updateCourtCountDisplay(initialCourtCount);
     pruneMatchesAbove(initialCourtCount);
+    // enforce saved slot count
+    try {
+      if (typeof window.board.setSlotsPerCourt === 'function') {
+        window.board.setSlotsPerCourt(initialSlotCount);
+      } else {
+        window.board.slotsPerCourt = initialSlotCount;
+        if (typeof window.board.render === 'function') window.board.render();
+      }
+    } catch {}
   } else {
     console.log('[APP] No existing boardInstance found, creating new Board');
-    window.board = new Board(initialCourtCount);
+    window.board = new Board(initialCourtCount, initialSlotCount);
     applyCourtVisibilityLimit(initialCourtCount);
     updateCourtCountDisplay(initialCourtCount);
     pruneMatchesAbove(initialCourtCount);
@@ -366,6 +393,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const addMatchForm = document.getElementById('add-match-form');
   const courtSelect = document.getElementById('court-select');
   const positionSelect = document.getElementById('position-select');
+  const slotCountSelect = document.getElementById('slot-count-select');
   
   // 要素が見つかったかどうかをログに出力（デバッグ用）
   console.log('[APP] Add match button found:', !!addMatchBtn);
@@ -425,6 +453,22 @@ document.addEventListener('DOMContentLoaded', () => {
   // 「Win」入力時の時刻表示機能ここまで
   
   // コート選択オプションは board.updateCourtSelectOptions() で更新されるため、ここでは不要
+
+  // Build position select options based on current slotsPerCourt
+  const rebuildPositionOptions = () => {
+    if (!positionSelect || !window.board) return;
+    const keys = window.board.getRowKeys ? window.board.getRowKeys() : ['current','next','next2','next3','next4','next5'];
+    const toLabel = (idx) => `第${idx+1}試合`;
+    const items = keys.map((k, i) => ({ value: k, label: toLabel(i) }));
+    const prevValue = positionSelect.value;
+    positionSelect.innerHTML = '';
+    const opt0 = document.createElement('option'); opt0.value = ''; opt0.textContent = '未割当'; positionSelect.appendChild(opt0);
+    for (const it of items) {
+      const o = document.createElement('option');
+      o.value = it.value; o.textContent = it.label; positionSelect.appendChild(o);
+    }
+    if ([...positionSelect.options].some(o => o.value === prevValue)) positionSelect.value = prevValue;
+  };
   
   // Function to update position select options
   const updatePositionSelectOptions = () => {
@@ -434,6 +478,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (selectedCourtValue && window.board) { // Check if a specific court is selected and board exists
       occupiedPositions = window.board.getOccupiedRowPositions(selectedCourtValue);
     }
+    // Ensure options reflect current slot count
+    rebuildPositionOptions();
 
     for (const option of positionSelect.options) {
       if (option.value === "") { // "Unassigned" option
@@ -470,11 +516,9 @@ document.addEventListener('DOMContentLoaded', () => {
         addMatchForm.reset(); // Reset form first
       }
       
-      if (typeof updatePositionSelectOptions === 'function') {
-        updatePositionSelectOptions(); // Then update position options based on (potentially reset) court selection
-      } else {
-        console.error('[APP] updatePositionSelectOptions is not a function');
-      }
+      // Rebuild options first, then update availability by court occupancy
+      try { rebuildPositionOptions(); } catch {}
+      try { updatePositionSelectOptions(); } catch { console.error('[APP] updatePositionSelectOptions is not a function'); }
 
       // Load and set preferred game format
       const preferredGameFormat = localStorage.getItem('preferredGameFormat');
@@ -562,6 +606,39 @@ document.addEventListener('DOMContentLoaded', () => {
     updateCourtCountDisplay(n);
     await pruneMatchesAbove(n);
   };
+
+  // 枠数変更（slotsPerCourt）の保存と適用
+  async function prunePositionsAbove(maxSlots) {
+    if (!window.db?.getAllMatches || !window.board?.getRowKeys) return;
+    try {
+      const keys = window.board.getRowKeys();
+      const allowed = new Set(keys);
+      const matches = await window.db.getAllMatches();
+      for (const m of matches) {
+        if (m && m.rowPosition && !allowed.has(String(m.rowPosition))) {
+          const updated = await window.db.updateMatch({ id: m.id, courtNumber: null, rowPosition: null, status: 'Unassigned' });
+          document.dispatchEvent(new CustomEvent('match-updated', { detail: { match: updated }}));
+        }
+      }
+    } catch (e) { console.warn('[SLOTS] prunePositionsAbove error', e); }
+  }
+
+  async function saveSlotCountAndApply(n) {
+    if (!window.board) return;
+    const v = Math.max(1, Math.min(20, parseInt(n, 10) || 6));
+    try {
+      if (typeof window.board.setSlotsPerCourt === 'function') {
+        await window.board.setSlotsPerCourt(v);
+      } else {
+        window.board.slotsPerCourt = v;
+        if (typeof window.board.render === 'function') window.board.render();
+      }
+      storeSlotCount(v);
+      rebuildPositionOptions();
+      updatePositionSelectOptions();
+      await prunePositionsAbove(v);
+    } catch (e) { console.warn('[SLOTS] apply failed', e); }
+  }
   
   // コート数変更ボタンのイベントリスナーを追加
   const decreaseCourtsBtn = document.getElementById('decrease-courts-btn');
@@ -576,6 +653,23 @@ document.addEventListener('DOMContentLoaded', () => {
   if (increaseCourtsBtn) {
     increaseCourtsBtn.addEventListener('click', () => {
       setTimeout(saveCourtsCount, 0);
+    });
+  }
+
+  // 枠数セレクト初期化とイベント
+  if (slotCountSelect) {
+    // populate 1..20
+    slotCountSelect.innerHTML = '';
+    for (let i = 1; i <= 20; i++) {
+      const o = document.createElement('option');
+      o.value = String(i);
+      o.textContent = `第${i}試合まで`;
+      slotCountSelect.appendChild(o);
+    }
+    slotCountSelect.value = String(initialSlotCount);
+    slotCountSelect.addEventListener('change', async (e) => {
+      const n = parseInt(e.target.value, 10);
+      await saveSlotCountAndApply(n);
     });
   }
   
@@ -606,13 +700,7 @@ document.addEventListener('DOMContentLoaded', () => {
           category,
           gameFormat, // Add selected game format
           // 予定開始時刻は設定しない
-          status: position ? 
-            (position === 'current' ? 'Current' : 
-             position === 'next' ? 'Next' : 
-             position === 'next2' ? 'Next2' : 
-             position === 'next3' ? 'Next3' : 
-             position === 'next4' ? 'Next4' : 
-             position === 'next5' ? 'Next5' : 'Unassigned') : 'Unassigned',
+          status: position ? (position === 'current' ? 'Current' : (position.startsWith('next') ? ('Next' + (position === 'next' ? '' : position.replace('next',''))) : 'Unassigned')) : 'Unassigned',
           courtNumber: courtNumber ? parseInt(courtNumber) : null,
           rowPosition: position || null
         };
