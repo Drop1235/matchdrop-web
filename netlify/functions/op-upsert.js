@@ -1,8 +1,7 @@
 // Netlify Function: op-upsert
 // Upserts matches into Supabase datasets table for a given tournament_id.
 // Rejects empty matches to prevent wiping OP.
-
-const fetch = require('node-fetch');
+// Note: Use global fetch provided by Netlify runtime (no external deps required).
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
