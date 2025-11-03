@@ -254,7 +254,7 @@ class Board {
     console.log('[BOARD] MatchCard created:', matchCard);
 
     // マッチカードをマップに登録（更新処理や次回のコートグリッド更新で参照するため）
-    this.matchCards.set(match.id, matchCard);
+    this.matchCards.set(String(match.id), matchCard);
     console.log('[BOARD] MatchCard match game format:', matchCard.match.gameFormat);
     console.log('[BOARD] MatchCard element:', matchCard.element);
     
@@ -316,13 +316,13 @@ class Board {
     console.log('[BOARD] Received match-deleted event for match ID:', matchId);
 
     // Remove from map
-    if (this.matchCards.has(matchId)) {
-      const matchCard = this.matchCards.get(matchId);
+    if (this.matchCards.has(String(matchId))) {
+      const matchCard = this.matchCards.get(String(matchId));
       // Ensure UI element is removed (safety)
       if (matchCard && matchCard.element) {
         matchCard.element.remove();
       }
-      this.matchCards.delete(matchId);
+      this.matchCards.delete(String(matchId));
     }
 
     // そのコートのプレースホルダー表示を更新
@@ -702,12 +702,13 @@ class Board {
   // Handle match updates
   handleMatchUpdate(match) {
     // Get the existing match card
-    const existingCard = this.matchCards.get(match.id);
+    const existingCard = this.matchCards.get(String(match.id));
     
     if (existingCard) {
       // If the match is completed, remove it from the board
       if (match.status === 'Completed') {
         existingCard.element.remove();
+        this.matchCards.delete(String(match.id));
         this.matchCards.delete(match.id);
         
         // Show the placeholder if the row is now empty
