@@ -327,7 +327,7 @@
         const ds = await getDataset(tid, 'matches');
         const label = document.getElementById('last-sync-label');
         if (ds && ds.data && Array.isArray(ds.data.matches)) {
-          const key = (typeof window.getMatchDataKey === 'function') ? window.getMatchDataKey() : 'tennisTournamentMatches_' + tid;
+          const key = (typeof window.getMatchDataKey === 'function') ? window.getMatchDataKey(tid) : 'tennisTournamentMatches_' + tid;
           const matches = ds.data.matches;
           console.log('[OP] pullLatest matches len=', matches.length, 'saveKey=', key);
           // If incoming is empty but local has data, do NOT overwrite to avoid losing unsaved work
@@ -379,6 +379,9 @@
             } catch { return Array.isArray(arr) ? arr : []; }
           };
           const normalizedCloud = normalizeIds(matches);
+          const rev = (ds && ds.data && ds.data._rev) ? Number(ds.data._rev) : 0;
+          let lastSeenRev = 0;
+          try { lastSeenRev = Number(localStorage.getItem('lastSeenRev_' + tid) || '0'); } catch {}
           // MERGE with local in-memory/localStorage to preserve local-only cards
           const prevRaw = localStorage.getItem(key) || '[]';
           const prevArr = (()=>{ try { return JSON.parse(prevRaw) } catch { return [] } })();
@@ -390,14 +393,17 @@
           let memArr = [];
           try { if (window.db && typeof window.db.getAllMatches === 'function') { memArr = await window.db.getAllMatches(); } } catch {}
           const localCandidates = [ ...(Array.isArray(prevArr)?prevArr:[]), ...(Array.isArray(memArr)?memArr:[]) ];
-          // Deleted tombstones (do not resurrect)
+          // Deleted tombstones: ignore them if cloud is newer (rev) or cloud has more matches than current memory
+          const shouldIgnoreTombstones = ((normalizedCloud?.length || 0) > memArr.length) || (rev && rev > lastSeenRev);
           let deletedSet = new Set();
-          try {
-            const delKey = (typeof window.getDeletedIdsKey === 'function') ? window.getDeletedIdsKey() : ('deletedMatchIds_' + tid);
-            const raw = localStorage.getItem(delKey);
-            const arr = raw ? JSON.parse(raw) : [];
-            deletedSet = new Set(Array.isArray(arr) ? arr.map(x => String(x)) : []);
-          } catch {}
+          if (!shouldIgnoreTombstones) {
+            try {
+              const delKey = (typeof window.getDeletedIdsKey === 'function') ? window.getDeletedIdsKey() : ('deletedMatchIds_' + tid);
+              const raw = localStorage.getItem(delKey);
+              const arr = raw ? JSON.parse(raw) : [];
+              deletedSet = new Set(Array.isArray(arr) ? arr.map(x => String(x)) : []);
+            } catch {}
+          }
           // Start with cloud and append any local-only by id
           const merged = [...cloudArr];
           const mergedIds = new Set([...cloudById.keys()]);
@@ -425,6 +431,7 @@
 
           // Persist merged dataset
           localStorage.setItem(key, JSON.stringify(merged));
+          try { if (rev) localStorage.setItem('lastSeenRev_' + tid, String(rev)); } catch {}
           try {
             if (window.db && typeof window.db.getAllMatches === 'function') {
               // Replace in-memory dataset if it differs from merged
@@ -528,7 +535,7 @@
       // Safety: avoid pushing empty if local actually has data
       if (!matches || matches.length === 0) {
         try {
-          const key = (typeof window.getMatchDataKey === 'function') ? window.getMatchDataKey() : 'tennisTournamentMatches_' + tid;
+          const key = (typeof window.getMatchDataKey === 'function') ? window.getMatchDataKey(tid) : 'tennisTournamentMatches_' + tid;
           const raw = localStorage.getItem(key);
           const arr = raw ? JSON.parse(raw) : [];
           if (Array.isArray(arr) && arr.length > 0) {
