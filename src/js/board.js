@@ -341,6 +341,20 @@ class Board {
       this.createAndPlaceMatchCard(match);
     });
     
+    // ドラッグ中のオートスクロール（ページ全体）
+    const edge = 80; // px from top/bottom to trigger
+    const step = 30; // scroll amount per event
+    document.addEventListener('dragover', (e) => {
+      // どの要素上でも、上/下端に近づいたらスクロール
+      const y = e.clientY;
+      const h = window.innerHeight || document.documentElement.clientHeight;
+      if (y < edge) {
+        window.scrollBy(0, -step);
+      } else if (y > h - edge) {
+        window.scrollBy(0, step);
+      }
+    });
+
     console.log('[BOARD] Event listeners setup complete');
   }
   
