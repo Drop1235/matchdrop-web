@@ -339,7 +339,9 @@
             let memLen = 0;
             try { if (window.db && typeof window.db.getAllMatches === 'function') { const m = await window.db.getAllMatches(); memLen = Array.isArray(m) ? m.length : 0; } } catch {}
             const domHasCards = !!document.querySelector('.match-card');
-            if ((matches?.length || 0) === 0 && (localLen > 0 || memLen > 0 || domHasCards)) {
+            // Use only runtime state (memory/DOM) to judge preservation; localStorage may be stale after deletions
+            const effectiveLocal = Math.max(memLen, domHasCards ? 1 : 0);
+            if ((matches?.length || 0) === 0 && effectiveLocal > 0) {
               console.warn('[OP] Cloud dataset empty; preserving local data.');
               const nowIso = new Date().toISOString();
               localStorage.setItem('lastSyncTime', nowIso);
@@ -348,7 +350,7 @@
               return;
             }
             // If cloud has fewer records than local/memory, regard cloud as older and keep local
-            if ((matches?.length || 0) < Math.max(localLen, memLen)) {
+            if ((matches?.length || 0) < memLen) {
               console.warn('[OP] Cloud appears older (fewer records). Preserving local. cloud=', matches?.length || 0, 'local=', localLen, 'mem=', memLen);
               const nowIso = new Date().toISOString();
               localStorage.setItem('lastSyncTime', nowIso);
