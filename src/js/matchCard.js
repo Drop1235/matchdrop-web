@@ -63,7 +63,7 @@ class MatchCard {
     
     // gameFormatが設定されていない場合のみデフォルト値を設定
     if (!this.match.gameFormat) {
-      this.match.gameFormat = '5game'; // Default to '5game'
+      this.match.gameFormat = '6game1set_ntb';
     }
 
     if (!this.match.memo) this.match.memo = '';
@@ -147,6 +147,15 @@ class MatchCard {
     // カード上部（メモ・リーグ名・時間・削除ボタン）
     const headerDiv = document.createElement('div');
     headerDiv.className = 'match-card-header';
+
+    const eligibleForBulk = (!this.match.courtNumber && !this.match.rowPosition && (this.match.status === 'Unassigned' || !this.match.status)) && ((this.match.winner == null) && ((this.match.scoreA == null || this.match.scoreA === '') && (this.match.scoreB == null || this.match.scoreB === '')));
+    if (eligibleForBulk && !this.isReadOnly()) {
+      const bulkCheckbox = document.createElement('input');
+      bulkCheckbox.type = 'checkbox';
+      bulkCheckbox.className = 'bulk-select';
+      bulkCheckbox.dataset.matchId = String(this.match.id);
+      headerDiv.appendChild(bulkCheckbox);
+    }
 
     // --- メモ欄（左端） ---
     const memoInput = document.createElement('input');

@@ -487,14 +487,14 @@ document.addEventListener('DOMContentLoaded', () => {
             gameFormatSelect.value = preferredGameFormat;
           } else {
             // Default if stored value is invalid or not an option
-            gameFormatSelect.value = '5game'; 
+            gameFormatSelect.value = '6game1set_ntb';
           }
         }
       } else {
         // Default if no preference stored
         const gameFormatSelect = document.getElementById('game-format-select');
         if (gameFormatSelect) {
-          gameFormatSelect.value = '5game';
+          gameFormatSelect.value = '6game1set_ntb';
         }
       }
 
@@ -761,6 +761,156 @@ window.onerror = function(message, source, lineno, colno, error) {
   return false;
 };
 
+// ----------------------------
+// Bulk game format updater
+// Conditions: Only applies to Unassigned cards with no score and no winner
+// ----------------------------
+(function(){
+  document.addEventListener('DOMContentLoaded', () => {
+    try {
+      // Admin only
+      const isAdmin = (typeof window.isAdmin === 'function') ? window.isAdmin() : true;
+      if (!isAdmin) return;
+
+      const unassigned = document.querySelector('.unassigned-section');
+      const list = document.getElementById('unassigned-cards');
+      if (!unassigned || !list) return;
+
+      // Toolbar container
+      const bar = document.createElement('div');
+      bar.id = 'bulk-format-bar';
+      bar.style.display = 'flex';
+      bar.style.alignItems = 'center';
+      bar.style.gap = '8px';
+      bar.style.padding = '6px 8px';
+      bar.style.background = '#fff7e6';
+      bar.style.border = '1px solid #f0ad4e';
+      bar.style.borderRadius = '6px';
+      bar.style.margin = '8px';
+
+      const title = document.createElement('span');
+      title.textContent = '未割当・未スコアの選択カードに一括適用:';
+      title.style.fontSize = '12px';
+
+      const selectAll = document.createElement('button');
+      selectAll.textContent = '全選択';
+      selectAll.style.padding = '4px 8px';
+
+      const clearSel = document.createElement('button');
+      clearSel.textContent = '選択解除';
+      clearSel.style.padding = '4px 8px';
+
+      const fmt = document.createElement('select');
+      fmt.id = 'bulk-format-select';
+      const formats = [
+        ['5game','5G'],
+        ['4game1set','4G1set'],
+        ['4game1set_ntb','4G1set NoTB'],
+        ['6game1set','6G1set'],
+        ['6game1set_ntb','6G1set NoTB'],
+        ['8game1set','8G-Pro'],
+        ['4game2set','4G2set+10MTB'],
+        ['6game2set','6G2set+10MTB'],
+        ['4game3set','4G3set'],
+        ['6game3set','6G3set'],
+      ];
+      for (const [v,l] of formats) { const o=document.createElement('option'); o.value=v; o.textContent=l; fmt.appendChild(o); }
+      fmt.value = localStorage.getItem('preferredGameFormat') || '6game1set_ntb';
+
+      const applyBtn = document.createElement('button');
+      applyBtn.textContent = '形式を一括適用';
+      applyBtn.style.padding = '4px 10px';
+      applyBtn.style.background = '#f0ad4e';
+      applyBtn.style.color = '#000';
+      applyBtn.style.border = '1px solid #e39b35';
+      applyBtn.style.borderRadius = '4px';
+
+      const counter = document.createElement('span');
+      counter.id = 'bulk-format-count';
+      counter.style.fontSize = '12px';
+      counter.style.color = '#555';
+      counter.textContent = '(選択 0 件)';
+
+      bar.appendChild(title);
+      bar.appendChild(selectAll);
+      bar.appendChild(clearSel);
+      bar.appendChild(fmt);
+      bar.appendChild(applyBtn);
+      bar.appendChild(counter);
+
+      // Insert above unassigned list
+      unassigned.insertBefore(bar, list);
+
+      function eligibleCheckboxes() {
+        return Array.from(list.querySelectorAll('input.bulk-select')).filter((cb) => {
+          try {
+            const card = cb.closest('.match-card');
+            if (!card) return false;
+            // Further safety filter using dataset if needed
+            return true;
+          } catch { return false; }
+        });
+      }
+
+      function updateCount() {
+        const cbs = eligibleCheckboxes();
+        const selected = cbs.filter(cb => cb.checked).length;
+        counter.textContent = `(選択 ${selected} 件)`;
+      }
+
+      list.addEventListener('change', (e) => {
+        const t = e.target;
+        if (t && t.classList && t.classList.contains('bulk-select')) updateCount();
+      });
+
+      selectAll.addEventListener('click', () => {
+        const cbs = eligibleCheckboxes();
+        cbs.forEach(cb => cb.checked = true);
+        updateCount();
+      });
+      clearSel.addEventListener('click', () => {
+        const cbs = eligibleCheckboxes();
+        cbs.forEach(cb => cb.checked = false);
+        updateCount();
+      });
+
+      applyBtn.addEventListener('click', async () => {
+        const val = fmt.value;
+        const cbs = eligibleCheckboxes().filter(cb => cb.checked);
+        if (cbs.length === 0) { alert('対象が選択されていません'); return; }
+        if (!confirm(`${cbs.length}件のカードに「${fmt.options[fmt.selectedIndex].text}」を適用しますか？`)) return;
+        // Persist preference
+        try { localStorage.setItem('preferredGameFormat', val); } catch {}
+        let ok = 0, fail = 0;
+        for (const cb of cbs) {
+          try {
+            const id = cb.dataset.matchId;
+            // Update DB
+            if (window.db && typeof window.db.updateMatch === 'function') {
+              const updated = await window.db.updateMatch({ id, gameFormat: val });
+              // Notify board to refresh display
+              document.dispatchEvent(new CustomEvent('match-updated', { detail: { match: updated } }));
+              ok++;
+            } else {
+              fail++;
+            }
+          } catch (e) { fail++; }
+        }
+        updateCount();
+        alert(`適用完了: 成功 ${ok} 件 / 失敗 ${fail} 件`);
+        // After bulk apply, optionally auto-push
+        try { if (typeof window.maybeAutoPush === 'function') window.maybeAutoPush('bulk-format'); } catch {}
+      });
+
+      // Initial count
+      updateCount();
+      // Keep count in sync after dynamic adds
+      document.addEventListener('match-added', updateCount);
+      document.addEventListener('match-updated', updateCount);
+    } catch (e) { console.warn('bulk format init failed', e); }
+  });
+})();
+
 window.buildLeagueMatchesArray = async function() {
   if (window.db && typeof window.db.getAllMatches === 'function') {
     try { return await window.db.getAllMatches(); } catch (_) { return []; }
@@ -780,6 +930,17 @@ window.sendToOPFromLeague = async function(tid, matches, settings = {}) {
     localStorage.setItem('tournaments', JSON.stringify(list));
     localStorage.setItem('currentTournamentId', tid);
   } catch (_) {}
+  // Apply selected game format to each match if provided
+  try {
+    const fmt = settings.gameFormat || settings.format;
+    if (fmt) {
+      matches = matches.map(m => {
+        if (m && !m.gameFormat) return { ...m, gameFormat: fmt };
+        return m;
+      });
+    }
+  } catch (_) {}
+
   const res = await fetch('/.netlify/functions/op-upsert', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -797,8 +958,12 @@ window.sendToOPFromLeague = async function(tid, matches, settings = {}) {
   btn.addEventListener('click', async () => {
     const tidEl = document.querySelector('#op-tid-input');
     const nameEl = document.querySelector('#tname-input');
+    const fmtEl = document.querySelector('#op-game-format-select');
     const tid = ((tidEl && tidEl.value) || localStorage.getItem('currentTournamentId') || '').trim();
-    const settings = { tname: (nameEl && nameEl.value ? nameEl.value.trim() : undefined) };
+    const settings = {
+      tname: (nameEl && nameEl.value ? nameEl.value.trim() : undefined),
+      gameFormat: (fmtEl && fmtEl.value ? fmtEl.value : undefined)
+    };
     const matches = await window.buildLeagueMatchesArray();
     await window.sendToOPFromLeague(tid, matches, settings);
   });
