@@ -1940,7 +1940,8 @@ updateBulkSelectVisibility() {
     if (!cb) return;
     const parent = this.element.parentElement;
     const inUnassigned = parent && parent.id === 'unassigned-cards';
-    const eligible = inUnassigned && (this.match.status === 'Unassigned' || !this.match.status) && !this.isReadOnly();
+    // In unassigned list -> always show. Otherwise hide.
+    const eligible = !!inUnassigned;
     cb.style.display = eligible ? '' : 'none';
   } catch (_) {}
 }
