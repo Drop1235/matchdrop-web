@@ -215,6 +215,16 @@ class Board {
       // Get all matches from the database
       const matches = await db.getAllMatches();
       
+      // 既存のDOM上のマッチカードをすべて削除（重複防止）
+      try {
+        document.querySelectorAll('.match-card').forEach(el => el.remove());
+      } catch {}
+      // 未割当エリアを明示的にクリア（存在する場合）
+      try {
+        const ua = document.getElementById('unassigned-cards');
+        if (ua) ua.querySelectorAll('.match-card').forEach(el => el.remove());
+      } catch {}
+
       // Clear existing match cards
       this.matchCards.clear();
       
@@ -248,6 +258,12 @@ class Board {
       return null;
     }
     
+    // 既存DOMノードがあれば一度除去（重複防止）
+    try {
+      const oldNode = document.getElementById(`match-${match.id}`) || document.querySelector(`.match-card[data-match-id="${match.id}"]`);
+      if (oldNode && oldNode.parentNode) oldNode.parentNode.removeChild(oldNode);
+    } catch {}
+
     // Create the match card
     console.log('[BOARD] Creating new MatchCard instance');
     const matchCard = new MatchCard(match);
