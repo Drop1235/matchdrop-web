@@ -29,34 +29,32 @@ exports.handler = async (event) => {
       return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'matches is empty. Aborting to prevent wipe.' }) };
     }
 
-    const payload = {
+    const nowIso = new Date().toISOString();
+    const base = `${SUPABASE_URL}/rest/v1/datasets`;
+    const AUTH_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || SUPABASE_ANON_KEY;
+    const upsertPayload = {
       tournament_id: tid,
       type: 'matches',
       data: { matches, settings, _rev: Date.now() },
-      updated_at: new Date().toISOString(),
+      updated_at: nowIso,
     };
-
-    const url = `${SUPABASE_URL}/rest/v1/datasets?on_conflict=tournament_id,type`;
-    const resp = await fetch(url, {
+    const upsert = await fetch(`${base}?on_conflict=tournament_id,type`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        apikey: SUPABASE_ANON_KEY,
-        authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        Prefer: 'return=representation',
+        apikey: AUTH_KEY,
+        authorization: `Bearer ${AUTH_KEY}`,
+        // true upsert with update on duplicates
+        Prefer: 'resolution=merge-duplicates,return=representation',
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(upsertPayload),
     });
-
-    const text = await resp.text();
-    let json;
-    try { json = JSON.parse(text); } catch { json = { raw: text }; }
-
-    if (!resp.ok) {
-      return { statusCode: resp.status, body: JSON.stringify({ ok: false, error: json }) };
+    const t = await upsert.text();
+    let j; try { j = JSON.parse(t); } catch { j = { raw: t }; }
+    if (!upsert.ok) {
+      return { statusCode: upsert.status, body: JSON.stringify({ ok: false, error: j }) };
     }
-
-    return { statusCode: 200, body: JSON.stringify({ ok: true, count: matches.length, data: json }) };
+    return { statusCode: 200, body: JSON.stringify({ ok: true, count: matches.length, data: j }) };
   } catch (e) {
     return { statusCode: 500, body: JSON.stringify({ ok: false, error: String(e) }) };
   }
