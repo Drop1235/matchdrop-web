@@ -148,12 +148,15 @@ class MatchCard {
     const headerDiv = document.createElement('div');
     headerDiv.className = 'match-card-header';
 
-    const eligibleForBulk = (!this.match.courtNumber && !this.match.rowPosition && (this.match.status === 'Unassigned' || !this.match.status)) && ((this.match.winner == null) && ((this.match.scoreA == null || this.match.scoreA === '') && (this.match.scoreB == null || this.match.scoreB === '')));
+    // Show bulk checkbox for cards that are clearly Unassigned (no court/row).
+    // Keep condition simple to avoid missing edge cases where score fields are prefilled as empty strings etc.
+    const eligibleForBulk = (!this.match.courtNumber && !this.match.rowPosition && (this.match.status === 'Unassigned' || !this.match.status));
     if (eligibleForBulk && !this.isReadOnly()) {
       const bulkCheckbox = document.createElement('input');
       bulkCheckbox.type = 'checkbox';
       bulkCheckbox.className = 'bulk-select';
       bulkCheckbox.dataset.matchId = String(this.match.id);
+      bulkCheckbox.style.marginRight = '6px';
       headerDiv.appendChild(bulkCheckbox);
     }
 
@@ -1902,6 +1905,16 @@ update(newMatchData) {
   if (memoInput && memoInput.value !== this.match.memo) {
     memoInput.value = this.match.memo;
   }
+
+  // ---- Update game format display (so bulk apply reflects immediately) ----
+  try {
+    const fmtDisp = this.element.querySelector('.match-card-game-format-display');
+    if (fmtDisp) {
+      const key = (this.match.gameFormat || '6game1set_ntb').toLowerCase();
+      const label = (this.gameFormatOptions && this.gameFormatOptions[key]) ? this.gameFormatOptions[key] : key;
+      fmtDisp.textContent = label;
+    }
+  } catch (_) {}
 
   // スコア文字列 → セットスコア配列を同期（読み込み時のスコア消失防止）
   const numSetsUpdate = this._getNumberOfSets();
