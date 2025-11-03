@@ -453,6 +453,7 @@
             const delKey = (typeof window.getDeletedIdsKey === 'function') ? window.getDeletedIdsKey() : ('deletedMatchIds_' + tid);
             localStorage.removeItem(delKey);
           } catch {}
+          try { localStorage.removeItem('deletedExternalIds_' + tid); } catch {}
 
           // Apply shared settings (courtCount, courtNames) if present
           const settings = ds.data.settings || {};
