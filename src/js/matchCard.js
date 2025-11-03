@@ -148,17 +148,13 @@ class MatchCard {
     const headerDiv = document.createElement('div');
     headerDiv.className = 'match-card-header';
 
-    // Show bulk checkbox for cards that are clearly Unassigned (no court/row).
-    // Keep condition simple to avoid missing edge cases where score fields are prefilled as empty strings etc.
-    const eligibleForBulk = (!this.match.courtNumber && !this.match.rowPosition && (this.match.status === 'Unassigned' || !this.match.status));
-    if (eligibleForBulk && !this.isReadOnly()) {
-      const bulkCheckbox = document.createElement('input');
-      bulkCheckbox.type = 'checkbox';
-      bulkCheckbox.className = 'bulk-select';
-      bulkCheckbox.dataset.matchId = String(this.match.id);
-      bulkCheckbox.style.marginRight = '6px';
-      headerDiv.appendChild(bulkCheckbox);
-    }
+    // Always create a bulk checkbox and control visibility later
+    const bulkCheckbox = document.createElement('input');
+    bulkCheckbox.type = 'checkbox';
+    bulkCheckbox.className = 'bulk-select';
+    bulkCheckbox.dataset.matchId = String(this.match.id);
+    bulkCheckbox.style.marginRight = '6px';
+    headerDiv.appendChild(bulkCheckbox);
 
     // --- メモ欄（左端） ---
     const memoInput = document.createElement('input');
@@ -345,6 +341,9 @@ class MatchCard {
     headerDiv.appendChild(rightWrap);
     headerDiv.appendChild(editButton);
     headerDiv.appendChild(deleteButton);
+
+    // initial visibility for bulk checkbox
+    this.updateBulkSelectVisibility();
 
     // カテゴリ表示（メモと名前の間）
     const categoryRow = document.createElement('div');
@@ -1834,8 +1833,10 @@ setupDragAndDrop() {
     });
     this.element.addEventListener('dragend', () => {
       this.element.classList.remove('dragging');
+      // After drop, recalc checkbox visibility based on new parent container
+      try { this.updateBulkSelectVisibility(); } catch {}
     });
-}
+  }
 
 async moveToHistory() {
     // Placeholder for actual implementation
@@ -1930,6 +1931,18 @@ update(newMatchData) {
   // or directly if gameFormat changes. If only names/memo change, it's not strictly needed here
   // but calling it ensures consistency if other logic depends on it.
   this.checkLeagueWinCondition(); 
+}
+
+// Toggle visibility of bulk-select checkbox based on location/status
+updateBulkSelectVisibility() {
+  try {
+    const cb = this.element ? this.element.querySelector('input.bulk-select') : null;
+    if (!cb) return;
+    const parent = this.element.parentElement;
+    const inUnassigned = parent && parent.id === 'unassigned-cards';
+    const eligible = inUnassigned && (this.match.status === 'Unassigned' || !this.match.status) && !this.isReadOnly();
+    cb.style.display = eligible ? '' : 'none';
+  } catch (_) {}
 }
 
   // セットスコアから合計スコアを計算するメソッド

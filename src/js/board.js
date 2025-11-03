@@ -280,6 +280,8 @@ class Board {
       const unassignedCards = document.getElementById('unassigned-cards');
       if (unassignedCards) {
         unassignedCards.appendChild(matchCard.element);
+        // Ensure bulk checkbox visibility after the element enters DOM
+        try { if (typeof matchCard.updateBulkSelectVisibility === 'function') matchCard.updateBulkSelectVisibility(); } catch {}
         return matchCard;
       }
     }
@@ -305,6 +307,7 @@ class Board {
       // 後方互換性のためにカードコンテナがない場合は行に直接追加
       row.appendChild(matchCard.element);
     }
+    try { if (typeof matchCard.updateBulkSelectVisibility === 'function') matchCard.updateBulkSelectVisibility(); } catch {}
   }
 
   // Set up event listeners for board-related events
@@ -732,12 +735,19 @@ class Board {
         return;
       }
       
-      // 既存のカードの位置が変更された場合
+      // 位置の比較（未割当含む）
       const oldCourtNumber = existingCard.match.courtNumber != null ? parseInt(existingCard.match.courtNumber) : null;
       const oldRowPosition = existingCard.match.rowPosition ? String(existingCard.match.rowPosition) : '';
       const newCourtNumber = match.courtNumber != null ? parseInt(match.courtNumber) : null;
       const newRowPosition = match.rowPosition ? String(match.rowPosition) : '';
-      
+
+      // 位置が変わらない場合は、その場でデータのみ更新し、DOMの再挿入を避ける（並び順維持）
+      if (oldCourtNumber === newCourtNumber && oldRowPosition === newRowPosition) {
+        existingCard.update(match);
+        try { if (typeof existingCard.updateBulkSelectVisibility === 'function') existingCard.updateBulkSelectVisibility(); } catch {}
+        return;
+      }
+
       // 既存のカードを現在の位置から削除
       existingCard.element.remove();
       
@@ -774,6 +784,7 @@ class Board {
         const cardContainer = row.querySelector('.card-container');
         cardContainer.appendChild(existingCard.element);
       }
+      try { if (typeof existingCard.updateBulkSelectVisibility === 'function') existingCard.updateBulkSelectVisibility(); } catch {}
     } else if (match.status !== 'Completed') {
       // 新規カードの場合は作成して配置
       this.createAndPlaceMatchCard(match);
