@@ -28,7 +28,11 @@ body {
     padding: 4px 0;
     position: sticky;
     top: 0;
-    z-index: 5;
+    z-index: 100;
+  }
+  /* 検索バーが固定表示のため、閲覧モードではその高さ分だけずらす */
+  .viewer-mode .court-title {
+    top: 44px; /* 検索バーの高さ + 余白に合わせて調整 */
   }
   .match-row {
     gap: 3px;
