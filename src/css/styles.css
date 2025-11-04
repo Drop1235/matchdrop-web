@@ -220,6 +220,19 @@ button.active {
   font-weight: bold;
 }
 
+/* Mobile: keep each court header visible while scrolling */
+@media (max-width: 768px) {
+  .court-header {
+    position: sticky;
+    top: 0; /* default when admin (検索バー非表示) */
+    z-index: 900;
+  }
+  /* Viewer mode has a sticky search bar at top; offset court header accordingly */
+  .viewer-mode .court-header {
+    top: 44px; /* adjust if search bar height differs */
+  }
+}
+
 .history-court-header {
   background-color: #d4e2f9; /* 青みがかった背景色 */
   color: #2c3e50; /* 濃い青色のテキスト */
