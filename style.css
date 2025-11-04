@@ -26,6 +26,9 @@ body {
   .court-title {
     font-size: 1.1em;
     padding: 4px 0;
+    position: sticky;
+    top: 0;
+    z-index: 5;
   }
   .match-row {
     gap: 3px;
