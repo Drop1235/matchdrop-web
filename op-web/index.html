@@ -511,8 +511,13 @@
           const nowIso = new Date().toISOString();
           localStorage.setItem('lastSyncTime', nowIso);
           if (label) label.textContent = '最終更新: ' + new Date(nowIso).toLocaleString('ja-JP');
-          // Only reload if dataset actually changed and is non-empty to avoid clearing transiently
-          const changed = JSON.stringify(prevArr) !== JSON.stringify(merged);
+          // Only reload if dataset actually changed (by IDs) and is non-empty to avoid clearing transiently
+          const toIdList = (arr) => {
+            try { return (Array.isArray(arr) ? arr : []).map(x => String(x && x.id)).filter(Boolean).sort(); } catch { return []; }
+          };
+          const prevIds = toIdList(prevArr);
+          const mergedIdList = toIdList(merged);
+          const changed = prevIds.join('|') !== mergedIdList.join('|');
           if (changed && merged.length > 0) {
             // Mark that we have pulled once in this session to prevent re-auto-pull loop after reload
             try { sessionStorage.setItem('op_auto_pulled_once', '1'); } catch {}
