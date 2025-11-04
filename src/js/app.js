@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const tid = getCurrentTournamentId() || 'default';
     return 'slotCount_' + tid;
   }
-  function loadSlotCount(defaultValue = 6) {
+  function loadSlotCount(defaultValue = 15) {
     const v = localStorage.getItem(_slotCountKey());
     const n = parseInt(v, 10);
     if (Number.isFinite(n) && n > 0) return n;
@@ -300,7 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // コート数をロード（大会別に保存）
   const initialCourtCount = loadCourtCount(12);
-  const initialSlotCount = loadSlotCount(6);
+  const initialSlotCount = loadSlotCount(15);
   
   // Initialize components
   console.log('[APP] Creating Board instance.');

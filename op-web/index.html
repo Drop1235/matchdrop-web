@@ -11,7 +11,7 @@
   <style>
     .cloud-controls { display:flex; gap:8px; align-items:center; margin-left:8px; }
     /* viewer search */
-    .viewer-search { display:flex; gap:6px; align-items:center; margin-left:8px; }
+    .viewer-search { display:flex; gap:6px; align-items:center; margin: 6px 8px; }
     .viewer-search input { padding:6px 8px; border:1px solid #ccc; border-radius:4px; min-width: 180px; }
     .viewer-search button { padding:6px 10px; }
     .search-hit { outline: 3px solid #ffcc00; transition: outline-color 1s ease; }
@@ -52,14 +52,13 @@
         <span id="last-sync-label" style="font-size:0.85em;color:#666;">最終更新: -</span>
       </div>
 
-      <!-- Viewer-only search box -->
-      <div id="viewer-search" class="viewer-search" style="display:none; margin-left:auto;">
-        <input id="viewer-search-input" type="text" placeholder="名前で検索 (閲覧モード)" autocomplete="off" />
-        <button id="viewer-search-btn" title="次の一致へ">検索</button>
-      </div>
-      
     </nav>
   </header>
+  <!-- Viewer-only search box (placed under header for mobile visibility) -->
+  <div id="viewer-search" class="viewer-search" style="display:none;">
+    <input id="viewer-search-input" type="text" placeholder="名前で検索 (閲覧モード)" autocomplete="off" />
+    <button id="viewer-search-btn" title="次の一致へ">検索</button>
+  </div>
   <!-- Viewer-mode admin re-entry button (shown only when body has viewer-mode) -->
   <button id="viewer-admin-entry" class="viewer-admin-entry" title="管理モード">👤</button>
 
@@ -768,18 +767,9 @@
         }
       } catch {}
 
-      // Auto fetch latest
+      // Auto fetch latest (always once on load regardless of mode)
       try {
-        const sp = new URLSearchParams(location.search);
-        const hasTid = !!sp.get('tid');
-        const alreadyPulled = sessionStorage.getItem('op_auto_pulled_once') === '1';
-        // Viewer mode: always auto-pull on every load (ignore session flag)
-        if (!isAdmin()) {
-          await pullLatest();
-        } else if (hasTid && !alreadyPulled) {
-          // Admin mode: keep previous behavior to avoid loops
-          await pullLatest();
-        }
+        await pullLatest();
       } catch (e) { console.warn('auto pull on load failed', e); }
 
       // 初期化時に最終更新時刻を localStorage から反映
