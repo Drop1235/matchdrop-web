@@ -10,6 +10,11 @@
   <link rel="icon" href="../assets/icon.png">
   <style>
     .cloud-controls { display:flex; gap:8px; align-items:center; margin-left:8px; }
+    /* viewer search */
+    .viewer-search { display:flex; gap:6px; align-items:center; margin-left:8px; }
+    .viewer-search input { padding:6px 8px; border:1px solid #ccc; border-radius:4px; min-width: 180px; }
+    .viewer-search button { padding:6px 10px; }
+    .search-hit { outline: 3px solid #ffcc00; transition: outline-color 1s ease; }
   </style>
 </head>
 <body>
@@ -45,6 +50,12 @@
         <button id="cloud-push-btn" title="現在の状態をクラウドへ保存">☁️ 保存</button>
         <button id="toggle-admin-btn" title="管理者/閲覧者 切替">👤 管理</button>
         <span id="last-sync-label" style="font-size:0.85em;color:#666;">最終更新: -</span>
+      </div>
+
+      <!-- Viewer-only search box -->
+      <div id="viewer-search" class="viewer-search" style="display:none; margin-left:auto;">
+        <input id="viewer-search-input" type="text" placeholder="名前で検索 (閲覧モード)" autocomplete="off" />
+        <button id="viewer-search-btn" title="次の一致へ">検索</button>
       </div>
       
     </nav>
@@ -459,7 +470,7 @@
           } catch {}
           try { localStorage.removeItem('deletedExternalIds_' + tid); } catch {}
 
-          // Apply shared settings (courtCount, courtNames) if present
+          // Apply shared settings (courtCount, courtNames, slotsPerCourt) if present
           const settings = ds.data.settings || {};
           if (settings && typeof settings.courtCount === 'number') {
             try {
@@ -468,6 +479,27 @@
                 // Save both per-tournament and legacy keys for compatibility
                 localStorage.setItem('courtCount_' + tid, String(cc));
                 localStorage.setItem('courtCount', String(cc));
+              }
+            } catch {}
+          }
+          // slotsPerCourt (rows per court): persist and try to apply live
+          if (settings && typeof settings.slotsPerCourt === 'number') {
+            try {
+              const sc = parseInt(settings.slotsPerCourt, 10);
+              if (Number.isFinite(sc) && sc > 0) {
+                const key = 'slotCount_' + tid;
+                localStorage.setItem(key, String(sc));
+                // Try to apply immediately if board exists
+                if (window.board) {
+                  try {
+                    if (typeof window.board.setSlotsPerCourt === 'function') {
+                      await window.board.setSlotsPerCourt(sc);
+                    } else {
+                      window.board.slotsPerCourt = sc;
+                      if (typeof window.board.render === 'function') window.board.render();
+                    }
+                  } catch (e) { console.warn('[OP] apply slotsPerCourt failed', e); }
+                }
               }
             } catch {}
           }
@@ -559,6 +591,7 @@
       const settings = {
         courtCount: board && typeof board.numberOfCourts === 'number' ? board.numberOfCourts : undefined,
         courtNames: board && board.courtNames ? board.courtNames : undefined,
+        slotsPerCourt: board && typeof board.slotsPerCourt === 'number' ? board.slotsPerCourt : undefined,
       };
       const rev = Date.now();
       try {
@@ -636,6 +669,12 @@
       document.getElementById('cloud-push-btn').disabled = !admin;
       document.getElementById('delete-all-matches-btn').disabled = !admin;
       document.getElementById('add-match-btn').disabled = !admin;
+
+      // Toggle viewer search visibility: show only when NOT admin
+      try {
+        const vs = document.getElementById('viewer-search');
+        if (vs) vs.style.display = admin ? 'none' : 'flex';
+      } catch {}
     }
 
     // 関数をデバッグしやすいように公開
@@ -654,6 +693,54 @@
       if (toggleBtn) toggleBtn.addEventListener('click', toggleAdmin);
       if (adminEntry) adminEntry.addEventListener('click', toggleAdmin);
       console.log('[OP] cloud controls bound');
+
+      // Viewer search: find cards by player name and jump/highlight (viewer mode only)
+      try {
+        const input = document.getElementById('viewer-search-input');
+        const btn = document.getElementById('viewer-search-btn');
+        const state = { query: '', hits: [], idx: 0 };
+        function collectHits(q) {
+          const cards = Array.from(document.querySelectorAll('.match-card'));
+          const lower = q.toLowerCase();
+          const res = [];
+          for (const el of cards) {
+            try {
+              const names = Array.from(el.querySelectorAll('.player-name-input'))
+                .map(i => (i.value || i.textContent || '').toLowerCase());
+              if (names.some(n => n.includes(lower))) res.push(el);
+            } catch {}
+          }
+          return res;
+        }
+        function highlight(el) {
+          try {
+            el.classList.add('search-hit');
+            setTimeout(() => el.classList.remove('search-hit'), 1500);
+          } catch {}
+        }
+        async function doSearch() {
+          // Only effective in viewer mode
+          if (isAdmin()) return;
+          if (!input) return;
+          const q = (input.value || '').trim();
+          if (!q) return;
+          if (state.query !== q) {
+            state.query = q;
+            state.hits = collectHits(q);
+            state.idx = 0;
+          }
+          if (!state.hits.length) {
+            try { if (typeof showToast === 'function') showToast('一致するカードが見つかりません'); } catch {}
+            return;
+          }
+          const target = state.hits[state.idx % state.hits.length];
+          try { target.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch { target.scrollIntoView(); }
+          highlight(target);
+          state.idx = (state.idx + 1) % state.hits.length;
+        }
+        if (btn) btn.addEventListener('click', doSearch);
+        if (input) input.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSearch(); });
+      } catch (e) { console.warn('[OP] viewer search bind failed', e); }
 
       // 初期表示
       await ensureTables();
