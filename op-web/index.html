@@ -528,6 +528,15 @@
           return;
         }
         console.warn('[OP] pullLatest: no dataset for this tournament or empty');
+        // ここで上書き確認: クラウドが空の場合、ローカルを消すか保持するか選択
+        try {
+          const proceed = confirm('クラウドにデータがありません。\nこのまま取得するとローカルの試合カードは空になります。\n\nローカルを保持する場合は「キャンセル」を選択してください。\n\n続行しますか？');
+          if (!proceed) {
+            // キャンセル: ローカル保持（何もせず終了）
+            if (label) label.textContent = '最終更新: キャンセル';
+            return;
+          }
+        } catch {}
         const nowIso = new Date().toISOString();
         localStorage.setItem('lastSyncTime', nowIso);
         if (label) label.textContent = '最終更新: ' + new Date(nowIso).toLocaleString('ja-JP');
@@ -773,9 +782,20 @@
         }
       } catch {}
 
-      // Auto fetch latest (always once on load regardless of mode)
+      // Auto fetch latest
       try {
-        await pullLatest();
+        const hasLocal = (async () => {
+          try { return (await (window.db?.getAllMatches?.() || [])).length > 0; } catch { return false; }
+        })();
+        if (!isAdmin()) {
+          // Viewer: サーバーデータ優先で常に取得
+          await pullLatest();
+        } else {
+          // Admin: 既にローカルにカードがあるなら自動取得しない（誤上書き防止）
+          if (!(await hasLocal)) {
+            await pullLatest();
+          }
+        }
       } catch (e) { console.warn('auto pull on load failed', e); }
 
       // 初期化時に最終更新時刻を localStorage から反映
