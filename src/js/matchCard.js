@@ -345,13 +345,20 @@ class MatchCard {
     // initial visibility for bulk checkbox
     this.updateBulkSelectVisibility();
 
-    // カテゴリ表示（メモと名前の間）
-    const categoryRow = document.createElement('div');
-    categoryRow.className = 'match-card-category';
-    categoryRow.style.margin = '4px 0 2px 0';
-    categoryRow.style.fontSize = '12px';
-    categoryRow.style.color = '#666';
-    categoryRow.textContent = this.match.category || '';
+    // メタ情報行: 左にコート情報、右にカテゴリ（例: 「コート1　リーグ3」）
+    const metaRow = document.createElement('div');
+    metaRow.className = 'match-card-meta';
+    // 左: コート情報
+    const courtInfo = document.createElement('span');
+    courtInfo.className = 'match-card-court';
+    const cn = this.match.courtNumber != null ? parseInt(this.match.courtNumber, 10) : null;
+    courtInfo.textContent = cn ? `コート${cn}` : '';
+    // 右: カテゴリ
+    const categorySpan = document.createElement('span');
+    categorySpan.className = 'match-card-category';
+    categorySpan.textContent = this.match.category || '';
+    metaRow.appendChild(courtInfo);
+    metaRow.appendChild(categorySpan);
 
     // プレイヤー情報（縦に配置）
     const playersContainer = document.createElement('div');
@@ -878,7 +885,7 @@ class MatchCard {
 
   if (!card.contains(headerDiv)) {
     card.appendChild(headerDiv);
-    if (typeof categoryRow !== 'undefined') card.appendChild(categoryRow);
+    card.appendChild(metaRow);
     card.appendChild(playersContainer);
   }
 
@@ -1906,6 +1913,19 @@ update(newMatchData) {
   if (memoInput && memoInput.value !== this.match.memo) {
     memoInput.value = this.match.memo;
   }
+
+  // Update court and category meta
+  try {
+    const courtSpan = this.element.querySelector('.match-card-court');
+    if (courtSpan) {
+      const cn = this.match.courtNumber != null ? parseInt(this.match.courtNumber, 10) : null;
+      courtSpan.textContent = cn ? `コート${cn}` : '';
+    }
+    const catSpan = this.element.querySelector('.match-card-category');
+    if (catSpan) {
+      catSpan.textContent = this.match.category || '';
+    }
+  } catch (_) {}
 
   // ---- Update game format display (so bulk apply reflects immediately) ----
   try {

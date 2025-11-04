@@ -11,7 +11,7 @@
   <style>
     .cloud-controls { display:flex; gap:8px; align-items:center; margin-left:8px; }
     /* viewer search */
-    .viewer-search { display:flex; gap:6px; align-items:center; margin: 6px 8px; }
+    .viewer-search { display:flex; gap:6px; align-items:center; margin: 0; padding: 6px 8px; position: sticky; top: 0; z-index: 1000; background: #fff; box-shadow: 0 1px 4px #0001; }
     .viewer-search input { padding:6px 8px; border:1px solid #ccc; border-radius:4px; min-width: 180px; }
     .viewer-search button { padding:6px 10px; }
     .search-hit { outline: 3px solid #ffcc00; transition: outline-color 1s ease; }
@@ -697,6 +697,7 @@
       try {
         const input = document.getElementById('viewer-search-input');
         const btn = document.getElementById('viewer-search-btn');
+        const bar = document.getElementById('viewer-search');
         const state = { query: '', hits: [], idx: 0 };
         function collectHits(q) {
           const cards = Array.from(document.querySelectorAll('.match-card'));
@@ -733,7 +734,12 @@
             return;
           }
           const target = state.hits[state.idx % state.hits.length];
-          try { target.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch { target.scrollIntoView(); }
+          // Scroll target into view, then offset for sticky bar height so the controls stay visible
+          try { target.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch { target.scrollIntoView(); }
+          try {
+            const offset = (bar && bar.offsetHeight ? bar.offsetHeight : 48) + 8;
+            window.scrollBy({ top: -offset, left: 0, behavior: 'smooth' });
+          } catch {}
           highlight(target);
           state.idx = (state.idx + 1) % state.hits.length;
         }
