@@ -657,6 +657,41 @@
         const lbl = document.getElementById('last-sync-label');
         if (lbl) lbl.textContent = '最終更新: ' + new Date().toLocaleString('ja-JP');
         showToast('クラウドに保存しました');
+
+        // After saving data, capture and upload a screenshot for viewer-only URL
+        try {
+          // Target the main board area; fallback to body
+          const target = document.getElementById('board-view') || document.getElementById('court-grid') || document.body;
+          if (window.html2canvas && target) {
+            const canvas = await window.html2canvas(target, { backgroundColor: '#ffffff', scale: 2 });
+            await new Promise((resolve, reject) => {
+              canvas.toBlob(async (blob) => {
+                try {
+                  if (!blob) return resolve();
+                  const bucket = 'matchdrop-public'; // Pre-create as public bucket in Supabase
+                  const path = `screenshots/${tid}.png`;
+                  // Upload with upsert and low cache-control for near-realtime refresh on the same URL
+                  const { error: upErr } = await supabase.storage.from(bucket).upload(path, blob, {
+                    contentType: 'image/png',
+                    upsert: true,
+                    cacheControl: 'public, max-age=5, must-revalidate'
+                  });
+                  if (upErr) throw upErr;
+                  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+                  if (data && data.publicUrl) {
+                    // Optionally show a toast once with the URL
+                    try { showToast('スクリーンショット更新: ' + data.publicUrl, { duration: 2500 }); } catch {}
+                    // Expose helper so the operator can copy it from console if needed
+                    window.getScreenshotUrl = (tidArg) => supabase.storage.from(bucket).getPublicUrl(`screenshots/${tidArg||tid}.png`).data.publicUrl;
+                  }
+                  resolve();
+                } catch (e) { console.warn('[OP] screenshot upload failed', e); resolve(); }
+              }, 'image/png');
+            });
+          }
+        } catch (e) {
+          console.warn('[OP] screenshot capture skipped', e);
+        }
       } catch (e) {
         console.warn('[OP] pushNow failed', e);
         // Show non-blocking toast with reason
