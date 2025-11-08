@@ -418,6 +418,8 @@
                   await window.db.deleteAllMatches({ skipTombstone: true });
                   for (const m of normalizedCloud) { await window.db.addMatch(m); }
                 }
+                // Proactively re-render board even if IDs didn't change
+                try { if (window.board && typeof window.board.loadMatches === 'function') await window.board.loadMatches(); } catch {}
               } catch (e) { console.warn('sync in-memory (viewer overwrite) failed', e); }
               // Clear tombstones so pulled IDs are not filtered
               try { const delKey = (typeof window.getDeletedIdsKey === 'function') ? window.getDeletedIdsKey() : ('deletedMatchIds_' + tid); localStorage.removeItem(delKey); } catch {}
@@ -505,6 +507,8 @@
                   for (const m of merged) { await window.db.addMatch(m); }
                 }
               }
+              // Proactively refresh board UI
+              try { if (window.board && typeof window.board.loadMatches === 'function') await window.board.loadMatches(); } catch {}
             }
           } catch (e) { console.warn('sync in-memory after pull failed', e); }
 

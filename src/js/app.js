@@ -4,9 +4,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // Use ?viewer=1 to open read-only viewer (skip interactive init).
   const params = new URLSearchParams(location.search);
   const forceViewer = params.get('viewer') === '1';
+  // In viewer-only embeds that don't have a board, we skip init.
+  // But if a board container exists (e.g., op-web), we still initialize to render read-only board.
   if (forceViewer) {
-    console.log('[APP] viewer mode forced via ?viewer=1 - skipping interactive init');
-    return;
+    const hasBoardContainer = !!document.getElementById('court-grid');
+    if (!hasBoardContainer) {
+      console.log('[APP] viewer mode with no board container - skipping interactive init');
+      return;
+    }
+    console.log('[APP] viewer mode but board container is present - proceed to init for read-only rendering');
   }
 
   // --- SlotsPerCourt persistence (大会別) ---
