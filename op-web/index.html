@@ -344,8 +344,14 @@
           const key = (typeof window.getMatchDataKey === 'function') ? window.getMatchDataKey(tid) : 'tennisTournamentMatches_' + tid;
           const matches = ds.data.matches;
           console.log('[OP] pullLatest matches len=', matches.length, 'saveKey=', key);
+          // Revision info (use to decide whether to bypass local-preserve guards)
+          const rev = (ds && ds.data && ds.data._rev) ? Number(ds.data._rev) : 0;
+          let lastSeenRev = 0;
+          try { lastSeenRev = Number(localStorage.getItem('lastSeenRev_' + tid) || '0'); } catch {}
+          const newerCloud = !!(rev && rev > lastSeenRev);
           // If incoming is empty but local has data, do NOT overwrite to avoid losing unsaved work
           try {
+            const adminForGuards = (typeof isAdmin === 'function') ? isAdmin() : false;
             const localRaw = localStorage.getItem(key);
             const localArr = localRaw ? JSON.parse(localRaw) : [];
             const localLen = Array.isArray(localArr) ? localArr.length : 0;
@@ -355,7 +361,7 @@
             const domHasCards = !!document.querySelector('.match-card');
             // Use only runtime state (memory/DOM) to judge preservation; localStorage may be stale after deletions
             const effectiveLocal = Math.max(memLen, domHasCards ? 1 : 0);
-            if ((matches?.length || 0) === 0 && effectiveLocal > 0) {
+            if (adminForGuards && !newerCloud && (matches?.length || 0) === 0 && effectiveLocal > 0) {
               console.warn('[OP] Cloud dataset empty; preserving local data.');
               const nowIso = new Date().toISOString();
               localStorage.setItem('lastSyncTime', nowIso);
@@ -364,7 +370,7 @@
               return;
             }
             // If cloud has fewer records than local/memory, regard cloud as older and keep local
-            if ((matches?.length || 0) < memLen) {
+            if (adminForGuards && !newerCloud && (matches?.length || 0) < memLen) {
               console.warn('[OP] Cloud appears older (fewer records). Preserving local. cloud=', matches?.length || 0, 'local=', localLen, 'mem=', memLen);
               const nowIso = new Date().toISOString();
               localStorage.setItem('lastSyncTime', nowIso);
@@ -435,9 +441,7 @@
               return;
             }
           } catch (e) { console.warn('viewer cloud-first override failed, falling back to admin merge path', e); }
-          const rev = (ds && ds.data && ds.data._rev) ? Number(ds.data._rev) : 0;
-          let lastSeenRev = 0;
-          try { lastSeenRev = Number(localStorage.getItem('lastSeenRev_' + tid) || '0'); } catch {}
+          // rev/lastSeenRev already computed above
           // MERGE with local in-memory/localStorage to preserve local-only cards
           const prevRaw = localStorage.getItem(key) || '[]';
           const prevArr = (()=>{ try { return JSON.parse(prevRaw) } catch { return [] } })();
@@ -793,6 +797,27 @@
       updateAdminUI();
       await pullMeta();
 
+      // Realtime: auto-pull on datasets table changes for this tournament (viewer mode only)
+      try {
+        const tid = getTournamentId();
+        const channel = supabase
+          .channel('datasets_changes_' + tid)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'datasets', filter: 'tournament_id=eq.' + tid }, async (payload) => {
+            try {
+              if (!isAdmin()) {
+                // Only react to matches type if present in new/old record
+                const rec = payload?.new || payload?.old || {};
+                if (!rec.type || rec.type === 'matches') {
+                  await pullLatest();
+                }
+              }
+            } catch (e) { console.warn('[OP] realtime pull failed', e); }
+          })
+          .subscribe((status) => { console.log('[OP] realtime status:', status); });
+        // keep reference if needed later
+        window.__opRealtimeChannel = channel;
+      } catch (e) { console.warn('[OP] realtime subscribe failed', e); }
+
       // コピーアイコンに現在のtidを反映しクリックでコピー
       try {
         const copyBtn = document.getElementById('copy-tid-btn');
@@ -818,6 +843,13 @@
       try {
         await pullLatest();
       } catch (e) { console.warn('auto pull on load failed', e); }
+
+      // Periodic fallback: in viewer mode, refresh every 60s in case realtime is blocked
+      try {
+        setInterval(async () => {
+          try { if (!isAdmin()) await pullLatest(); } catch {}
+        }, 60000);
+      } catch {}
 
       // 初期化時に最終更新時刻を localStorage から反映
       try {
