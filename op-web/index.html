@@ -52,6 +52,7 @@
         <button id="cloud-pull-btn" title="クラウドから取得（クラウド優先）">🔄 更新</button>
         <button id="cloud-push-btn" title="現在の状態をクラウドへ保存">☁️ 保存</button>
         <button id="toggle-admin-btn" title="管理者/閲覧者 切替">👤 管理</button>
+        <button id="copy-screenshot-url-btn" title="スクショURLをコピー" style="display:none;">🖼️ URLコピー</button>
         <span id="last-sync-label" style="font-size:0.85em;color:#666;">最終更新: -</span>
       </div>
 
@@ -245,7 +246,7 @@
     const ADMIN_FLAG_KEY = 'op_is_admin';
 
     function isAdmin() {
-      return localStorage.getItem(ADMIN_FLAG_KEY) === '1';
+      try { return localStorage.getItem(ADMIN_FLAG_KEY) === '1'; } catch { return false; }
     }
 
     async function ensureTables() {
@@ -773,6 +774,54 @@
     window.pullLatest = pullLatest;
     window.pullMeta = pullMeta;
     window.pushNow = pushNow;
+
+    // setup admin toggle
+    const adminBtn = document.getElementById('admin-toggle-btn');
+    if (adminBtn) {
+      const updateAdminUi = () => {
+        const admin = isAdmin();
+        adminBtn.textContent = admin ? '管理: ON' : '管理';
+      };
+      adminBtn.addEventListener('click', () => {
+        const now = isAdmin();
+        try { localStorage.setItem('op_is_admin', now ? '0' : '1'); } catch {}
+        updateAdminUi();
+      });
+      updateAdminUi();
+    }
+
+    // setup screenshot URL copy (admin only)
+    const copyBtn = document.getElementById('copy-screenshot-url-btn');
+    if (copyBtn) {
+      const refreshVisibility = () => {
+        copyBtn.style.display = isAdmin() ? 'inline-flex' : 'none';
+      };
+      refreshVisibility();
+      // also update when admin toggled
+      if (adminBtn) adminBtn.addEventListener('click', () => setTimeout(refreshVisibility, 0));
+
+      copyBtn.addEventListener('click', async () => {
+        try {
+          const tid = (new URLSearchParams(location.search).get('tid')) || localStorage.getItem('currentTournamentId') || 'default';
+          const bucket = 'matchdrop-public';
+          if (!window.supabase || !supabase.storage) {
+            alert('Supabaseが初期化されていません。ページを再読み込みしてください。');
+            return;
+          }
+          const { data } = supabase.storage.from(bucket).getPublicUrl(`screenshots/${tid}.png`);
+          const url = data && data.publicUrl;
+          if (!url) {
+            alert('スクショURLを生成できませんでした。保存後に再度お試しください。');
+            return;
+          }
+          await (navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(url) : Promise.reject('clipboard'));
+          try { showToast('スクショURLをコピーしました'); } catch {}
+        } catch (e) {
+          console.warn('[OP] copy screenshot url failed', e);
+          alert('URLのコピーに失敗しました');
+        }
+      });
+    }
 
     // 初期化関数（DOMContentLoaded 後に追加された場合でも即時バインドできるように）
     async function initCloudControls() {

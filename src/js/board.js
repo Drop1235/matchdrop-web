@@ -1082,7 +1082,8 @@ class Board {
           }
           
           if (scoreParts.length > 0) {
-            scoreText = `"='${scoreParts.join(' ')}"`;
+            // Excel-safe literal: ="text" prevents date conversion and keeps as string
+            scoreText = '="' + scoreParts.join(' ') + '"';
           }
         } else {
           // シングルゲーム形式の場合（5game、4game1set等）
@@ -1099,7 +1100,8 @@ class Board {
               gameScore += `(${match.tieBreakA})`;
             }
             
-            scoreText = `"='${gameScore}"`;
+            // Excel-safe literal: ="text"
+            scoreText = '="' + gameScore + '"';
           }
         }
         
