@@ -393,6 +393,48 @@
             } catch { return Array.isArray(arr) ? arr : []; }
           };
           const normalizedCloud = normalizeIds(matches);
+          // Cloud-first on viewer devices: if not admin, always override local with cloud
+          try {
+            const admin = (typeof isAdmin === 'function') ? isAdmin() : false;
+            if (!admin) {
+              const prevRaw = localStorage.getItem(key) || '[]';
+              let prevArr; try { prevArr = JSON.parse(prevRaw); } catch { prevArr = []; }
+              const toIdList = (arr) => {
+                try { return (Array.isArray(arr) ? arr : []).map(x => String(x && x.id)).filter(Boolean).sort(); } catch { return []; }
+              };
+              const prevIds = toIdList(prevArr);
+              const cloudIds = toIdList(normalizedCloud);
+              // Persist cloud to localStorage
+              localStorage.setItem(key, JSON.stringify(normalizedCloud));
+              // Replace in-memory dataset with cloud
+              try {
+                if (window.db && typeof window.db.deleteAllMatches === 'function' && typeof window.db.addMatch === 'function') {
+                  await window.db.deleteAllMatches({ skipTombstone: true });
+                  for (const m of normalizedCloud) { await window.db.addMatch(m); }
+                }
+              } catch (e) { console.warn('sync in-memory (viewer overwrite) failed', e); }
+              // Clear tombstones so pulled IDs are not filtered
+              try { const delKey = (typeof window.getDeletedIdsKey === 'function') ? window.getDeletedIdsKey() : ('deletedMatchIds_' + tid); localStorage.removeItem(delKey); } catch {}
+              try { localStorage.removeItem('deletedExternalIds_' + tid); } catch {}
+              // Update last seen rev/time if available below
+              const nowIso = new Date().toISOString();
+              localStorage.setItem('lastSyncTime', nowIso);
+              if (label) label.textContent = '最終更新: ' + new Date(nowIso).toLocaleString('ja-JP');
+              // Reload only if dataset actually changed
+              const changed = prevIds.join('|') !== cloudIds.join('|');
+              if (changed && normalizedCloud.length > 0) {
+                try { sessionStorage.setItem('op_auto_pulled_once', '1'); } catch {}
+                try {
+                  const u = new URL(location.href);
+                  u.searchParams.set('_v', Date.now());
+                  location.replace(u.toString());
+                } catch {
+                  location.reload();
+                }
+              }
+              return;
+            }
+          } catch (e) { console.warn('viewer cloud-first override failed, falling back to admin merge path', e); }
           const rev = (ds && ds.data && ds.data._rev) ? Number(ds.data._rev) : 0;
           let lastSeenRev = 0;
           try { lastSeenRev = Number(localStorage.getItem('lastSeenRev_' + tid) || '0'); } catch {}
