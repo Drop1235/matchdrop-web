@@ -414,6 +414,20 @@
               };
               const prevIds = toIdList(prevArr);
               const cloudIds = toIdList(normalizedCloud);
+              // SAFETY: if cloud is empty but local/memory/DOM has cards, do NOT overwrite in viewer mode
+              try {
+                let memLen = 0;
+                try { if (window.db && typeof window.db.getAllMatches === 'function') { const m = await window.db.getAllMatches(); memLen = Array.isArray(m) ? m.length : 0; } } catch {}
+                const domHasCards = !!document.querySelector('.match-card');
+                const localLen = Array.isArray(prevArr) ? prevArr.length : 0;
+                if ((normalizedCloud.length === 0) && (memLen > 0 || domHasCards || localLen > 0)) {
+                  const nowIso = new Date().toISOString();
+                  localStorage.setItem('lastSyncTime', nowIso);
+                  if (label) label.textContent = '最終更新: ' + new Date(nowIso).toLocaleString('ja-JP');
+                  try { if (typeof showToast === 'function') showToast('クラウドが空のためローカルを保持しました'); } catch {}
+                  return;
+                }
+              } catch {}
               // Persist cloud to localStorage
               localStorage.setItem(key, JSON.stringify(normalizedCloud));
               // Replace in-memory dataset with cloud
