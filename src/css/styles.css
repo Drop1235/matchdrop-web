@@ -10,8 +10,9 @@ html, body, .main {
   margin-top: 0 !important;
   padding-top: 0 !important;
   height: 100%;
+  /* allow both vertical and horizontal scrolling so wide court layouts can be viewed */
   overflow-y: auto !important;
-  overflow: hidden;
+  overflow-x: auto;
 }
 
 header {
@@ -102,29 +103,32 @@ button.active {
   display: none;
 }
 
-/* Court Grid Styles */
+/* Court Grid Styles: horizontal row of courts (scroll handled by parent) */
 .court-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 12px;
   margin-top: 20px;
-  /* Remove height: 100% so grid fills naturally */
-  max-height: none;
+  padding-bottom: 8px;
+  /* let parent container (.main-board-area) own the scrollbars */
+  overflow-x: visible;
   overflow-y: visible;
 }
 
-/* Very small phones */
+/* Very small phones: allow wrapping so 1列または2列で見やすく */
 @media (max-width: 420px) {
-  .court-grid { grid-template-columns: 1fr; }
+  .court-grid {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
 }
 
-/* 親コンテナにも高さ制限とスクロールを追加（必要に応じて） */
+/* 親コンテナ: コートエリア直下に横スクロールバーが出るようにする */
 .main-board-area {
   max-height: 85vh;
   overflow-y: auto;
-
-  max-height: 85vh;
-  overflow-y: auto;
+  overflow-x: auto; /* 横スクロールをここに集約 */
 }
 .board-container {
   max-height: 80vh;
@@ -204,7 +208,10 @@ button.active {
 .court-slot {
   border: 1px solid #ccc;
   border-radius: 4px;
-  /* Allow content to expand; scrolling is handled by parent */
+  /* fixed column width so many courts can appear side-by-side */
+  width: 275px;
+  flex: 0 0 275px;
+  /* Allow content to expand vertically; horizontal scroll is handled by parent */
   overflow: visible;
 }
 
@@ -544,6 +551,48 @@ button.active {
 .tie-break-separator {
   font-size: 0.9em;
   color: #555;
+}
+
+/* =========================
+   Compact layout for narrow views
+   画面を小さくしたときにカードが枠からはみ出さないよう縮小表示
+   ========================= */
+@media (max-width: 1600px) {
+  .match-card {
+    padding: 6px 8px;
+    font-size: 0.9em;
+  }
+
+  .player-name-input,
+  .player-label {
+    font-size: 0.9em;
+  }
+
+  .score-input {
+    width: 64px;
+    min-width: 60px;
+    font-size: 1.05em;
+    padding: 4px 3px;
+  }
+
+  .set-score-input {
+    width: 50px;
+    min-width: 46px;
+    font-size: 0.95em;
+    padding: 4px 0;
+  }
+
+  .total-score {
+    width: 34px;
+    min-width: 34px;
+    font-size: 0.95em;
+    padding: 4px 2px;
+  }
+
+  .tie-break-input {
+    width: 34px;
+    font-size: 0.8em;
+  }
 }
 
 /* History Table Styles */
