@@ -227,15 +227,9 @@
   <!-- クラウド連携 -->
   <script type="module">
     import { SUPABASE_URL, SUPABASE_ANON_KEY } from '/src/js/supabase-config.js?v=2025-11-03-op2';
-    // Use imported values, but if they point to an old host, force override to the correct project
-    let SB_URL = SUPABASE_URL;
-    let SB_KEY = SUPABASE_ANON_KEY;
-    const EXPECTED = 'https://gdfdunsoluxuiuzfrexs.supabase.co';
-    if (typeof SB_URL !== 'string' || SB_URL.indexOf('gdfdunsoluxuiuzfrexs.supabase.co') === -1) {
-      console.warn('[OP] Detected stale SUPABASE_URL, forcing override');
-      SB_URL = EXPECTED;
-      SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdkZmR1bnNvbHV4dWl1emZyZXhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAyNTUxODksImV4cCI6MjA3NTgzMTE4OX0.RTWFEoqqMVdfZU8H8Xcsjm-PT7XWFXm1hJG7HqBJOBs';
-    }
+    // supabase-config.js で設定された統合プロジェクトのURL/キーをそのまま利用する
+    const SB_URL = SUPABASE_URL;
+    const SB_KEY = SUPABASE_ANON_KEY;
     console.log('[OP] Using SUPABASE_URL =', SB_URL);
 
     // Supabaseクライアント
