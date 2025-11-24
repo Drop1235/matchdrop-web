@@ -68,6 +68,8 @@ class MatchCard {
 
     if (!this.match.memo) this.match.memo = '';
     if (!this.match.category) this.match.category = '';
+    // スコア自動補完のオン/オフ（true のとき自動補完しない）
+    this.match.manualScoreEntry = !!this.match.manualScoreEntry;
     this.match.tieBreakA = this.match.tieBreakA || '';
     this.match.tieBreakB = this.match.tieBreakB || '';
     
@@ -110,6 +112,76 @@ class MatchCard {
       default:
         return 1;
     }
+  }
+
+  // 単一セット形式のときに、相手側へ自動補完するスコアを返す
+  // 例:
+  //  - 4G1set:        0–2 → 4, 3,4 → 5 （4の場合はTB欄で手動入力）
+  //  - 4G1set NoTB:   0–2 → 4, 3   → 4
+  //  - 5G:            0〜5 → 5 - 入力値（合計5になるように）
+  //  - 6G1set:        0〜4 → 6, 5,6 → 7 （6の場合はTB欄で手動入力）
+  //  - 6G1set NoTB:   0〜5 → 6
+  //  - 8G-Pro:        0〜6 → 8, 7,8 → 9 （8の場合はTB欄で手動入力）
+  _autoFillSingleSetOpponentScore(value) {
+    if (value == null || Number.isNaN(value)) return null;
+    const fmt = (this.match.gameFormat || '').toLowerCase();
+
+    if (fmt === '4game1set' || fmt === '4game1set_ntb') {
+      if (fmt === '4game1set') {
+        // 4G1set: 0〜2 → 4, 3,4 → 5
+        if (value >= 0 && value <= 2) return 4;
+        if (value === 3 || value === 4) return 5;
+        return null;
+      } else {
+        // 4G1set NoTB: 0〜2 → 4, 3 → 4
+        if (value >= 0 && value <= 3) return 4;
+        return null;
+      }
+    }
+
+    if (fmt === '5game') {
+      // 入力: 0〜5 → 相手: 5 - 入力値（合計5になるように）
+      if (value >= 0 && value <= 5) return 5 - value;
+      return null;
+    }
+
+    if (fmt === '6game1set' || fmt === '6game1set_ntb') {
+      if (fmt === '6game1set') {
+        // 6G1set: 0〜4 → 6, 5,6 → 7
+        if (value >= 0 && value <= 4) return 6;
+        if (value === 5 || value === 6) return 7;
+        return null;
+      } else {
+        // 6G1set NoTB: 0〜5 → 6
+        if (value >= 0 && value <= 5) return 6;
+        return null;
+      }
+    }
+
+    if (fmt === '8game1set') {
+      // 8G-Pro: 0〜6 → 8, 7,8 → 9
+      if (value >= 0 && value <= 6) return 8;
+      if (value === 7 || value === 8) return 9;
+      return null;
+    }
+
+    return null;
+  }
+
+  // マルチセット形式（特に 6G2set+10MTB）のときの自動補完ロジック
+  // 現状は 6game2set の第3セット(マッチタイブレーク)のみ対応:
+  //  - 0〜8 → 10
+  //  - 9以上 → 入力値 + 2 (例: 9 → 11)
+  _autoFillMultiSetOpponentScore(setIndex, value) {
+    if (value == null || Number.isNaN(value)) return null;
+    const fmt = (this.match.gameFormat || '').toLowerCase();
+
+    if (fmt === '6game2set' && setIndex === 2) {
+      if (value >= 0 && value <= 8) return 10;
+      if (value >= 9) return value + 2;
+    }
+
+    return null;
   }
 
   _parseScores(scoreString, numSets) {
@@ -520,8 +592,29 @@ class MatchCard {
       
       scoreAInput.addEventListener('change', (e) => {
         if (this.isReadOnly()) { e.target.value = (this.match.scoreA ?? '') === '' ? '' : this.match.scoreA; return; }
-        this.match.scoreA = parseInt(e.target.value) || 0;
-        this.updateMatchData({ scoreA: this.match.scoreA });
+        const raw = e.target.value;
+        const val = parseInt(raw, 10);
+        this.match.scoreA = Number.isNaN(val) ? '' : val;
+
+        // 単一セット形式のときは、規定に応じて相手側のスコアを自動補完
+        if (!this.match.manualScoreEntry) {
+          const autoOpponent = this._autoFillSingleSetOpponentScore(val);
+          if (autoOpponent !== null && this.scoreBInput) {
+            // 既存値に関わらず、常に相手側を上書き
+            this.scoreBInput.value = String(autoOpponent);
+            this.match.scoreB = autoOpponent;
+          }
+        }
+
+        // 両方のスコアが空なら勝敗マークもリセット
+        const aEmpty = this.match.scoreA === '' || this.match.scoreA === null || Number.isNaN(parseInt(this.match.scoreA, 10));
+        const bEmpty = (this.match.scoreB === '' || this.match.scoreB === null || Number.isNaN(parseInt(this.match.scoreB, 10)));
+        if (aEmpty && bEmpty) {
+          this.match.winner = null;
+          this.match.actualEndTime = null;
+        }
+
+        this.updateMatchData({ scoreA: this.match.scoreA, scoreB: this.match.scoreB, winner: this.match.winner, actualEndTime: this.match.actualEndTime });
         this.updateDynamicElements();
         console.log('[DEBUG] scoreA changed:', this.match.scoreA, 'gameFormat:', this.match.gameFormat);
         this.checkLeagueWinCondition();
@@ -744,8 +837,29 @@ class MatchCard {
 
       scoreBInput.addEventListener('change', (e) => {
         if (this.isReadOnly()) { e.target.value = (this.match.scoreB ?? '') === '' ? '' : this.match.scoreB; return; }
-        this.match.scoreB = parseInt(e.target.value) || 0;
-        this.updateMatchData({ scoreB: this.match.scoreB });
+        const raw = e.target.value;
+        const val = parseInt(raw, 10);
+        this.match.scoreB = Number.isNaN(val) ? '' : val;
+
+        // 単一セット形式のときは、規定に応じて相手側のスコアを自動補完
+        if (!this.match.manualScoreEntry) {
+          const autoOpponent = this._autoFillSingleSetOpponentScore(val);
+          if (autoOpponent !== null && this.scoreAInput) {
+            // 既存値に関わらず、常に相手側を上書き
+            this.scoreAInput.value = String(autoOpponent);
+            this.match.scoreA = autoOpponent;
+          }
+        }
+
+        // 両方のスコアが空なら勝敗マークもリセット
+        const aEmpty = this.match.scoreA === '' || this.match.scoreA === null || Number.isNaN(parseInt(this.match.scoreA, 10));
+        const bEmpty = (this.match.scoreB === '' || this.match.scoreB === null || Number.isNaN(parseInt(this.match.scoreB, 10)));
+        if (aEmpty && bEmpty) {
+          this.match.winner = null;
+          this.match.actualEndTime = null;
+        }
+
+        this.updateMatchData({ scoreA: this.match.scoreA, scoreB: this.match.scoreB, winner: this.match.winner, actualEndTime: this.match.actualEndTime });
         this.updateDynamicElements();
         this.checkLeagueWinCondition();
       });
@@ -944,6 +1058,13 @@ openQuickEditPanel(ctx) {
   inpCat.type = 'text';
   inpCat.value = this.match.category || '';
 
+  // 手動入力モードのチェックボックス
+  const labelManual = document.createElement('label');
+  labelManual.textContent = '手動入力';
+  const chkManual = document.createElement('input');
+  chkManual.type = 'checkbox';
+  chkManual.checked = !!this.match.manualScoreEntry;
+
   const labelA = document.createElement('label');
   labelA.textContent = '選手A';
   const inpA = document.createElement('input');
@@ -964,7 +1085,9 @@ openQuickEditPanel(ctx) {
     const newCat = inpCat.value;
     const newA = inpA.value;
     const newB = inpB.value;
-    await this.updateMatchData({ gameFormat: newFmt, category: newCat, playerA: newA, playerB: newB });
+    const manual = !!chkManual.checked;
+    this.match.manualScoreEntry = manual;
+    await this.updateMatchData({ gameFormat: newFmt, category: newCat, playerA: newA, playerB: newB, manualScoreEntry: manual });
     if (categoryRow) categoryRow.textContent = newCat || '';
     if (playerAInput) playerAInput.value = newA || '';
     if (playerBInput) playerBInput.value = newB || '';
@@ -987,6 +1110,7 @@ openQuickEditPanel(ctx) {
 
   panel.appendChild(labelFmt); panel.appendChild(selFmt);
   panel.appendChild(labelCat); panel.appendChild(inpCat);
+  panel.appendChild(labelManual); panel.appendChild(chkManual);
   panel.appendChild(labelA); panel.appendChild(inpA);
   panel.appendChild(labelB); panel.appendChild(inpB);
   panel.appendChild(btnSave); panel.appendChild(btnCancel);
