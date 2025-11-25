@@ -1500,6 +1500,15 @@ updateWinStatus() {
     winBDiv.classList.remove('win-check');
   }
   
+  // 勝者が確定している試合カードの背景色をグレーにして視認性を上げる
+  if (this.element) {
+    if (this.match.winner === 'A' || this.match.winner === 'B') {
+      this.element.style.backgroundColor = '#eeeeee';
+    } else {
+      this.element.style.backgroundColor = '';
+    }
+  }
+  
   // --- winner timestamp capture ---
   try {
     let needSave = false;
